@@ -243,10 +243,60 @@ class DashboardResource(Resource):
 class UsersResource(Resource):
     @roles_required('admin')
     def get(self):
-        
+        try:
+            users = User.query.all()
+            users_list = [user.to_dict() for user in users]
+
+            return {
+                "users": users_list,
+                "count": len(users_list)
+            }, 200
+            except Exception as e:
+                return {"message": "Something went wrong", "error": str(e)}, 500
+
+
+class UserManagementResource(Resource):
+    @roles_required('admin')
+    def patch(self, user_id):
+        try:
+            user = User.query.filter_by(public_id=user_id).first()
+            if not user:
+                return {"message": "User not found"}, 404
+            
+            data = request.get_json() or {}
+            if "is_active" in data:
+                user.is_active = bool(data["is_active"])
+                db.session.commit()
+
+                status = "activated" if user.is_active else "deactivated"
+                return {
+                    "message": f"User {status} successfully", 
+                    "user": user.to_dict()
+                }, 200
+            return {"message": "No valid action provided"}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Something went wrong", "error": str(e)}, 500
+
+
+class HealthCheckResource(Resource):
+    def get(self):
+        """API health check"""
+        return {
+            "status": "healthy",
+            "message": "Property Management API is running",
+            "api_version": "1.0.0"
+        }, 200
+
 
 
 
 api.add_resource(RegisterResource, "/auth/register")
 api.add_resource(LoginResource, "/auth/login")
 api.add_resource(LogoutResource, "/auth/logout")
+api.add_resource(RefreshTokenResource, "/auth/refresh")
+api.add_resource(ProfileResource, "/auth/profile")
+api.add_resource(DashboardResource, "/auth/dashboard")
+api.add_resource(UsersResource, "/auth/users")
+api.add_resource(HealthCheckResource, "/health")
+api.add_resource(UserManagementResource, "/auth/users/<string:user_id>")
