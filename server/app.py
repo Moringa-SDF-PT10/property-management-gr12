@@ -12,11 +12,7 @@ db = SQLAlchemy(app)
 migrate = Migrate (app, db)
 CORS(app)
 
-@app.route('/api/signup', methods=['POST'])
 
-@app.route('/api/login', methods=['POST'])
-
-@app.route('/api/logout', methods=['POST']
 
 
 
