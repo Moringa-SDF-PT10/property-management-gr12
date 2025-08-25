@@ -21,14 +21,15 @@ class User(db.Model):
     public_id = db.Column(db.String(50), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(40), unique=True, nullable=False)
+    national_id = db.Column(db.Integer, unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(Enum(*VALID_ROLES, name="role_enum"), nullable=False)
     first_name = db.Column(db.String(40), nullable=False)
     last_name = db.Column(db.String(40), nullable=False)
     phone_number = db.Column(db.String(20), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -58,6 +59,16 @@ class User(db.Model):
             raise ValueError("Phone number must be at least 10 digits")
         return phone
 
+    @validates('national_id')
+    def validate_national_id(self, key, national_id):
+        if not isinstance(national_id, int):
+            raise ValueError("National ID must be an integer")
+        if len(national_id) > 8:
+            raise ValueError("National ID should not exceed 8 digits")
+        if national_id <= 0:
+            raise ValueError("Invalid")
+        return national_id
+
     def to_dict(self):
         return {
             "public_id": self.public_id,
@@ -65,6 +76,7 @@ class User(db.Model):
             "last_name": self.last_name,
             "username": self.username,
             "email": self.email,
+            "national_id": self.national_id,
             "phone_number": self.phone_number,
             "role": self.role,
             "is_active": self.is_active,
