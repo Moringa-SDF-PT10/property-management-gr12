@@ -5,6 +5,7 @@ from sqlalchemy.orm import validates
 from datetime import datetime, timezone
 import hashlib
 import uuid
+from sqlalchemy_serializer import SerializerMixin
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -13,8 +14,9 @@ ROLE_ADMIN = "admin"
 ROLE_TENANT = "tenant"
 ROLE_LANDLORD = "landlord"
 VALID_ROLES = {ROLE_ADMIN, ROLE_TENANT, ROLE_LANDLORD}
+LEASE_STATUSES = ("active", "terminated", "expired", "pending")
 
-class User(db.Model):
+class User(db.Model, SerializerMixin):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -30,6 +32,10 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
+
+    leases = db.relationship("Lease", back_populates="tenant", cascade="all, delete-orphan")
+    serialize_rules = ("-leases.tenant", "-leases.property")
+
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -63,7 +69,7 @@ class User(db.Model):
     def validate_national_id(self, key, national_id):
         if not isinstance(national_id, int):
             raise ValueError("National ID must be an integer")
-        if len(national_id) > 8:
+        if len(str(national_id)) > 8:
             raise ValueError("National ID should not exceed 8 digits")
         if national_id <= 0:
             raise ValueError("Invalid")
@@ -81,10 +87,51 @@ class User(db.Model):
             "role": self.role,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.aupdated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
 
     @staticmethod
     def validate_role_static(role):
         return role in VALID_ROLES
+    
+
+class Lease(db.Model, SerializerMixin):
+    __tablename__ = "leases"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    property_id = db.Column(db.Integer, db.ForeignKey("properties.id"))
+    start_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).date(), nullable=False)
+    end_date = db.Column(db.DateTime, nullable=True)
+    rent_amount = db.Column(db.Float, nullable=False)
+    status = db.Column(Enum(*LEASE_STATUSES, name="lease_status_enum"), default="active", nullable=False)
+
+    tenant = db.relationship("User", back_populates="leases")
+    property = db.relationship("Property", back_populates="leases")
+
+    serialize_rules = ("-tenant.leases", "-property.leases")
+
+    @validates("end_date")
+    def validate_dates(self, key, end_date):
+        if end_date and self.start_date and end_date <= self.start_date:
+            raise ValueError("End date must be after start date.")
+        return end_date
+
+    @validates("rent_amount")
+    def validate_rent(self, key, rent):
+        if rent <= 0:
+            raise ValueError("Rent amount must be greater than 0.")
+        return rent
+
+    def is_expired(self):
+        if self.end_date and datetime.now().date() > self.end_date:
+            return True
+        return False
+    
+    def duration_days(self):
+        if self.end_date and self.start_date:
+            return (self.end_date - self.start_date).days
+        return 0
+
+
