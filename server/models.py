@@ -15,6 +15,9 @@ ROLE_TENANT = "tenant"
 ROLE_LANDLORD = "landlord"
 VALID_ROLES = {ROLE_ADMIN, ROLE_TENANT, ROLE_LANDLORD}
 LEASE_STATUSES = ("active", "terminated", "expired", "pending")
+BILL_STATUSES = ("unpaid", "paid")
+VACATE_STATUSES = ("pending", "approved", "rejected", "completed")
+
 
 class User(db.Model, SerializerMixin):
     __tablename__ = "users"
@@ -107,6 +110,9 @@ class Lease(db.Model, SerializerMixin):
     rent_amount = db.Column(db.Float, nullable=False)
     status = db.Column(Enum(*LEASE_STATUSES, name="lease_status_enum"), default="active", nullable=False)
 
+    vacate_date = db.Column(db.Date, nullable=True)
+    vacate_status = db.Column(Enum(*VACATE_STATUSES, name="vacate_status_enum"), default="pending")
+
     tenant = db.relationship("User", back_populates="leases")
     property = db.relationship("Property", back_populates="leases")
     bills = db.relationship("Bill", back_populates="lease", cascade="all, delete-orphan")
@@ -134,6 +140,29 @@ class Lease(db.Model, SerializerMixin):
         if self.end_date and self.start_date:
             return (self.end_date - self.start_date).days
         return 0
+    
+    def request_vacate(self, date):
+        """Tenant requests to vacate."""
+        self.vacate_requested = True
+        self.vacate_date = date
+        self.vacate_status = "pending"
+
+    def approve_vacate(self):
+        """Landlord/admin approves vacate request."""
+        self.vacate_status = "approved"
+        self.status = "terminated"
+
+    def reject_vacate(self):
+        """Landlord/admin rejects vacate request."""
+        self.vacate_status = "rejected"
+        
+    @validates("vacate_status")
+    def validate_vacate_status(self, key, value):
+        allowed_statuses = ["pending", "approved", "rejected", "completed"]
+        if value not in allowed_statuses:
+            raise ValueError(f"Invalid vacate status: {value}. Must be one of {allowed_statuses}")
+        return value
+
 
 class Bill(db.Model, SerializerMixin):
     __tablename__ = "bills"
