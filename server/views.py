@@ -1,10 +1,11 @@
 from flask_restful import Resource, Api
 from flask import request, jsonify, render_template, flash, redirect, url_for, make_response
-from models import db, User
+from models import db, User,Lease
 from flask_jwt_extended import create_access_token, create_refresh_token, JWTManager, get_jwt_identity, get_jwt, get_jti, jwt_required, verify_jwt_in_request
 from app import app
 from functools import wraps
 import re
+from datetime import datetime
 
 api = Api(app)
 jwt = JWTManager(app)
@@ -28,7 +29,7 @@ def roles_required(*allowed_roles):
             role = get_jwt().get("role")
             if role not in allowed_roles:
                 return {
-                    "message": "Huu nnani hana ruhusa?"
+                    "message": "Huu nani hana ruhusa?"
                 }, 401
             return fn(*args, **kwargs)
         return wrapper
@@ -49,7 +50,7 @@ class RegisterResource(Resource):
         last_name = data.get("last_name", "").strip()
         email = data.get("email", "").lower().strip()
         phone_number = data.get("phone_number", "").strip()
-        national_id = data.get("national_id", "").strip()
+        national_id = int(str(data.get("national_id", "")).strip())
         role = data.get("role", None).lower().strip()
         password = data.get("password", "").strip()
 
@@ -90,7 +91,7 @@ class RegisterResource(Resource):
             db.session.rollback()
             return {"message": "Something went wrong", "error": str(e)}, 500
 
-def LoginResource(Resource):
+class LoginResource(Resource):
     def post(self):
         data = request.get_json() or {}
 
@@ -137,7 +138,7 @@ class LogoutResource(Resource):
 
 
 class RefreshResource(Resource):
-    @jwt_required()
+    @jwt_required(refresh=True)
     def post(self):
         try:
             user_id = get_jwt_identity()
@@ -201,8 +202,8 @@ class ProfileResource(Resource):
 
 class DashboardResource(Resource):
     @jwt_required()
-    """Get dashboard data based on user role"""
     def get(self):
+        """Get dashboard data based on user role"""
         try:
             user_id = get_jwt_identity()
             user = User.query.filter_by(public_id=user_id).first()
@@ -223,15 +224,17 @@ class DashboardResource(Resource):
                     "recent_notifications": [] # Extended features
                 })
             elif user.role == "tenant":
+                active_leases = Lease.query.filter_by(tenant_id = user.id,status ="active").count()
+
                 dashboard_data.update({
-                    "active_leases": 0, # To be implemented by Harriet
+                    "active_leases": active_leases,
                     "pending_payments": 0, # Tobe implemented by Valentine
                     "recent_notifications": []
                 })
             elif user.role == "admin":
-                dasboard_data.update({
+                dashboard_data.update({
                     "total_users": User.query.count(),
-                    "landlords_count": User.query.filter_by(role='landlord').count()
+                    "landlords_count": User.query.filter_by(role='landlord').count(),
                     "tenants_count": User.query.filter_by(role='tenant').count()
                 })
             return {"dashboard": dashboard_data}, 200
@@ -251,7 +254,7 @@ class UsersResource(Resource):
                 "users": users_list,
                 "count": len(users_list)
             }, 200
-            except Exception as e:
+        except Exception as e:
                 return {"message": "Something went wrong", "error": str(e)}, 500
 
 
@@ -287,6 +290,138 @@ class HealthCheckResource(Resource):
             "message": "Property Management API is running",
             "api_version": "1.0.0"
         }, 200
+    
+def tenant_required(fn):
+    @wraps(fn)
+    @jwt_required()
+    def wrapper(*args, **kwargs):
+        if get_jwt().get("role") != "tenant":
+            return {"message" : "Only tenants can perform this action"}, 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+def landlord_or_admin_required(fn):
+    @wraps(fn)
+    @jwt_required()
+    def wrapper(*args, **kwargs):
+        if get_jwt().get("role") not in ["landlord", "admin"]:
+            return {"message" : "Only landlords or admins can perform this action"}, 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+class LeaseListResource(Resource):
+    @jwt_required()
+    def get(self):
+        user_id = get_jwt_identity()
+        role = get_jwt().get("role")
+
+        user = User.query.filter_by(public_id=user_id).first()
+        if role == "tenant":
+            leases = Lease.query.filter_by(tenant_id = user.id).all()
+        else:
+            leases = Lease.query.all()
+
+        return {"leases": [lease.to_dict() for lease in leases]}, 200
+    
+    @tenant_required
+    def post(self):
+        data = request.get_json() or {}
+        required_fields = ["property_id", "start_date", "end_date", "rent_amount"]
+        for field in required_fields:
+            if field not in data:
+                return {"message": f"{field} is required"}, 400
+
+        try:
+            start_date = datetime.fromisoformat(data["start_date"]).date()
+            end_date = datetime.fromisoformat(data["end_date"]).date()
+            user = User.query.filter_by(public_id=get_jwt_identity()).first()
+            lease = Lease(
+                tenant_id = user.id,
+                property_id = data["property_id"],
+                start_date = start_date,
+                end_date = end_date,
+                rent_amount = float(data["rent_amount"]),
+            )
+            db.session.add(lease)
+            db.session.commit()
+            return {"message": "Lease created", "lease": lease.to_dict()}, 201
+        except ValueError as ve:
+            return {"message":str(ve)}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Failed to create lease", "error": str(e)}, 500
+        
+class LeaseResource(Resource):
+    @jwt_required()
+    def get(self, lease_id):
+        lease = Lease.query.get(lease_id)
+        if not lease:
+            return {"message": "Lease not found"}, 404
+        
+        role = get_jwt().get("role")
+        user = User.query.filter_by(public_id=get_jwt_identity()).first()
+        if role == "tenant" and lease.tenant_id != user.id:
+            return {"message": "Unauthorized"}, 403
+
+        
+        return {"lease": lease.to_dict()}, 200
+    @landlord_or_admin_required
+    def patch(self, lease_id):
+        lease = Lease.query.get(lease_id)
+        if not lease:
+            return{"message": "Lease not found"}, 404
+        
+        data = request.get_json() or {}
+        updated_fields = []
+
+        if "status" in data and data ["status"] in ["active","terminated", "expired", "pending"]:
+            lease.status = data["status"]
+            updated_fields.append("status")
+
+        if "rent_amount" in data:
+            try:
+                rent = float(data["rent_amount"])
+                if rent <= 0:
+                    return {"message": "Rent amount must be greater than 0"}, 400
+                lease.rent_amount = rent
+                updated_fields.append("rent_amount")
+            except ValueError:
+                return {"message": "Invalid rent amount"}, 400
+            
+        if "end_date" in data:
+            try:
+                lease.end_date = datetime.fromisoformat(data["end_date"]).date()
+                updated_fields.append("end_date")
+            except ValueError:
+                return {"message": "Invalid date format. Use YYYY-MM-DD"}, 400
+
+
+        if updated_fields:
+            try:
+                db.session.commit()
+                return{"message":f"Lease updated ({', '.join(updated_fields)})", "lease":lease.to_dict()}, 200
+            except Exception as e:
+                db.session.rollback()
+                return {"message": "Failed to update lease", "error": str(e)}, 500
+        else:
+            return {"message": "No valid fields to update"}, 400
+        
+    @landlord_or_admin_required
+    def delete(self, lease_id):
+        lease = Lease.query.get(lease_id)
+        if not lease:
+            return {"message": "Lease not found"}, 404
+
+        try:
+            db.session.delete(lease)
+            db.session.commit()
+            return {"message": "Lease deleted successfully"}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Failed to delete lease", "error": str(e)}, 500
+        
+
+
 
 
 
@@ -294,9 +429,11 @@ class HealthCheckResource(Resource):
 api.add_resource(RegisterResource, "/auth/register")
 api.add_resource(LoginResource, "/auth/login")
 api.add_resource(LogoutResource, "/auth/logout")
-api.add_resource(RefreshTokenResource, "/auth/refresh")
+api.add_resource(RefreshResource, "/auth/refresh")
 api.add_resource(ProfileResource, "/auth/profile")
 api.add_resource(DashboardResource, "/auth/dashboard")
 api.add_resource(UsersResource, "/auth/users")
 api.add_resource(HealthCheckResource, "/health")
 api.add_resource(UserManagementResource, "/auth/users/<string:user_id>")
+api.add_resource(LeaseListResource, "/leases")
+api.add_resource(LeaseResource, "/leases/<int:lease_id>")
