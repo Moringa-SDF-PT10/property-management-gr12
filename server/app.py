@@ -1,3 +1,4 @@
+
 # app.py
 from flask import Flask, send_from_directory
 from flask_cors import CORS
@@ -6,13 +7,21 @@ from models import db
 from routes import PropertyListResource, PropertyResource
 import os
 
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+
+
 def create_app():
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///property.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///rentals.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # Enable CORS for your frontend
     CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
+    
+    db = SQLAlchemy(app)
+    migrate = Migrate (app, db)
 
     # Initialize DB
     db.init_app(app)
@@ -39,4 +48,16 @@ if __name__ == "__main__":
     app = create_app()
     with app.app_context():
         db.create_all()  # create tables if not exist
+
+
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+
     app.run(debug=True)
