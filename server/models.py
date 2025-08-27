@@ -101,16 +101,16 @@ class User(db.Model, SerializerMixin):
         return role in VALID_ROLES
       
 class Property(db.Model):
-       __tablename__ = "properties"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    location = db.Column(db.String(150), nullable=False)
-    rent = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="vacant")
-    pictures = db.Column(db.Text, nullable=True)  
+   __tablename__ = "properties"
+   
+   id = db.Column(db.Integer, primary_key=True)
+   name = db.Column(db.String(100), nullable=False)
+   location = db.Column(db.String(150), nullable=False)
+   rent = db.Column(db.Float, nullable=False)
+   status = db.Column(db.String(20), nullable=False, default="vacant")
+   pictures = db.Column(db.Text, nullable=True)  
 
-    def to_dict(self):
+   def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
