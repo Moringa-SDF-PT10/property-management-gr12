@@ -1,6 +1,6 @@
 from flask_restful import Resource, Api
 from flask import request, jsonify, render_template, flash, redirect, url_for, make_response
-from models import db, User,Lease,Bill
+from models import db, User,Lease,Bill, Notification
 from flask_jwt_extended import create_access_token, create_refresh_token, JWTManager, get_jwt_identity, get_jwt, get_jti, jwt_required, verify_jwt_in_request
 from app import app
 from functools import wraps
@@ -893,6 +893,8 @@ class LeaseVacateApprovalResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
+
+
 
 
 
