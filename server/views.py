@@ -439,7 +439,7 @@ class TenantDashboardResource(Resource):
                 "quick_actions": [
                     {"name": "Pay Rent", "endpoint": "/payments/pay", "available": True},
                     {"name": "Submit Repair Request", "endpoint": "/maintenance/request", "available": True},
-                    {"name": "View Lease Details", "endpoint": "/leases/current" "available": True}
+                    {"name": "View Lease Details", "endpoint": "/leases/current", "available": True}
                 ],
                 "dashboard_type": "tenant",
                 "last_login": tenant.updated_at.isoformat() if tenant.updated_at else None
@@ -815,7 +815,7 @@ class BillResource(Resource):
         return {"message": "Bill deleted successfully"}, 200
     
 class LeaseVacateResource(Resource):
-    @jwt_required
+    @jwt_required()
     def put(self, lease_id):
         """
         Tenant submits a vacate notice for their lease.
@@ -858,7 +858,7 @@ class LeaseVacateApprovalResource(Resource):
     @landlord_or_admin_required
     def put(self, lease_id):
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user = User.query.get(public_id=current_user_id).first()
 
         if user.role not in ["landlord", "admin"]:
             return {"error": "Unauthorized"}, 403
