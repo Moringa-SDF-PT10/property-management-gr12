@@ -2,9 +2,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000
 
 // For JSON requests
 export async function api(path, { method = "GET", body, headers } = {}) {
+  const token = localStorage.getItem("token"); 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
-    headers: { "Content-Type": "application/json", ...(headers || {}) },
+    headers: { 
+      "Content-Type": "application/json",
+       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+       ...(headers || {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -20,8 +24,13 @@ export async function api(path, { method = "GET", body, headers } = {}) {
 
 // For form-data (file uploads)
 export async function apiFormData(path, { method = "POST", formData }) {
+  const token = localStorage.getItem("token");
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: formData,
   });
 
@@ -34,5 +43,14 @@ export async function apiFormData(path, { method = "POST", formData }) {
   if (ct && ct.includes("application/json")) return res.json();
   return null;
 }
+
+// Create lease for a user
+export async function createLease(leaseData) {
+  return api(`/leases`, {
+    method: "POST",
+    body: leaseData,
+  });
+}
+
 
 export { API_BASE_URL };
