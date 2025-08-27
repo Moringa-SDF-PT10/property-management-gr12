@@ -1,4 +1,3 @@
-from app import db
 import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum
@@ -109,6 +108,8 @@ class Property(db.Model):
     rent = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), nullable=False, default="vacant")
     pictures = db.Column(db.Text, nullable=True)  
+
+    leases = db.relationship("Lease", back_populates="property", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -230,5 +231,53 @@ class Bill(db.Model, SerializerMixin):
             return round(self.amount * (1 + penalty_rate), 2)
         return self.amount
 
+class Notification(db.Model, SerializerMixin):
+    __tablename__ = "notifications"
 
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    notification_type = db.Column(db.String(50), default="general", nullable=False)
+    is_broadcast = db.Column(db.Boolean, default=False, nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True)
 
+    sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_notifications")
+    recipient = db.relationship("User", foreign_keys=[recipient_id], backref="received_notifications")
+
+    serialize_rules = ("-sender.sent_notifications", "-recipient.received_notifications", "-sender.password_hash", "-recipient.password_hash")
+
+    @validates('notification_type')
+    def validate_notification_type(self, key, value):
+        valid_types = ["general", "urgent", "maintenance", "payment", "lease", "system"]
+        if value not in valid_types:
+            raise ValueError(f"Invalid notification type: {value}. Must be one of {valid_types}")
+        return value
+
+    def mark_as_read(self):
+        self.is_read = True
+        self.is_read_at = datetime.now(timezone.utc)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "sender": {
+                "id": self.sender.public_id if self.sender else None,
+                "name": f"{self.sender.first_name} {self.sender.last_name}" if self.sender else "System",
+                "role": self.sender.role if self.sender else "System"
+            },
+            "recipient": {
+                "id": self.recipient.public_id if self.recipient else None,
+                "name": f"{self.recipient.first_name} {self.recipient.last_name}" if self.recipient else "All tenants"
+            } if self.recipient else None,
+            "title": self.title,
+            "message": self.message,
+            "notification_type": self.notification_type,
+            "is_broadcast": self.is_broadcast,
+            "is_read": self.is_read,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "read_at": self.read_at.isoformat() if self.read_at else None
+        }
