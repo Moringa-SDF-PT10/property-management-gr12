@@ -1,4 +1,3 @@
-
 from app import db
 import json
 from flask_sqlalchemy import SQLAlchemy
@@ -24,9 +23,7 @@ VACATE_STATUSES = ("pending", "approved", "rejected", "completed")
 
 class User(db.Model, SerializerMixin):
     __tablename__ = "users"
-
-
-
+    
     id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.String(50), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(100), unique=True, nullable=False)
