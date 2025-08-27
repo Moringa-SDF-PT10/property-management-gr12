@@ -1,3 +1,6 @@
+
+from app import db
+import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum
 from flask_bcrypt import Bcrypt
@@ -21,6 +24,8 @@ VACATE_STATUSES = ("pending", "approved", "rejected", "completed")
 
 class User(db.Model, SerializerMixin):
     __tablename__ = "users"
+
+
 
     id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.String(50), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
@@ -97,6 +102,25 @@ class User(db.Model, SerializerMixin):
     @staticmethod
     def validate_role_static(role):
         return role in VALID_ROLES
+      
+class Property(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    location = db.Column(db.String(150), nullable=False)
+    rent = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="vacant")
+    pictures = db.Column(db.Text, nullable=True)  
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "location": self.location,
+            "rent": self.rent,
+            "status": self.status,
+            "pictures": json.loads(self.pictures) if self.pictures else [],
+        }
+     
     
 
 class Lease(db.Model, SerializerMixin):
@@ -206,5 +230,6 @@ class Bill(db.Model, SerializerMixin):
         if self.is_overdue():
             return round(self.amount * (1 + penalty_rate), 2)
         return self.amount
+
 
 
