@@ -8,7 +8,7 @@ import PropertyFormPage from "./pages/PropertyFormPage";
 
 export default function App() {
   return (
-    
+
       <Shell>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -17,8 +17,9 @@ export default function App() {
           <Route path="/properties/new" element={<PropertyFormPage />} />
           <Route path="/properties/:id" element={<PropertyDetailsPage />} />
           <Route path="/properties/:id/edit" element={<PropertyFormPage />} />
+          
         </Routes>
       </Shell>
-    
+
   );
 }
