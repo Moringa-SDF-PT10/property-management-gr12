@@ -1,14 +1,5 @@
 // src/App.jsx
-import { Route, Routes } from 'react-router-dom';
-// import Shell from './pages/Shell.jsx';
-import Shell from './layout/Shell.jsx';
 
-
-// Existing Pages
-// import HomePage from './pages/HomePage.jsx'; // You might still use HomePage, but not at "/"
-import DashboardPage from './pages/DashboardPage.jsx';
-
-// NEW Pages
 import LandlordDashboard from './pages/LandlordDashboard.jsx'; // Import the LandlordDashboard
 import LeaseDetailPage from './pages/LeaseDetailPage.jsx';
 import NotificationsFeed from './pages/NotificationsFeed.jsx';
@@ -16,16 +7,39 @@ import PaymentPage from './pages/PaymentPage.jsx';
 import PaymentResultPage from './pages/PaymentResultPage.jsx';
 import RepairRequestFormPage from './pages/RepairRequestFormPage.jsx';
 import NoPage from './pages/NoPage.jsx';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Shell from "./layout/Shell";
+import HomePage from "./pages/HomePagePage";
+import DashboardPage from "./pages/DashboardPage";
+import PropertiesListPage from "./pages/PropertiesListPage";
+import PropertyDetailsPage from "./pages/PropertyDetailsPage";
+import PropertyFormPage from "./pages/PropertyFormPage";
+import LeaseFormPage from "./pages/LeaseFormPage";
+import TenantDashboardPage from "./pages/TenantDashboardPage";
+import VacateFormPage from "./pages/VacateFormPage";
 
-function App() {
+
+export default function App() {
   return (
     <Shell>
       <Routes>
         {/* Make LandlordDashboard the default root page */}
         <Route path="/" element={<LandlordDashboard />} />
 
-        {/* You can still keep HomePage at a different path if you want, e.g., /home */}
-        {/* <Route path="/home" element={<HomePage />} /> */}
+      <Shell>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/properties" element={<PropertiesListPage />} />
+          <Route path="/properties/new" element={<PropertyFormPage />} />
+          <Route path="/properties/:id" element={<PropertyDetailsPage />} />
+          <Route path="/properties/:id/edit" element={<PropertyFormPage />} />
+          <Route path="/leases-booking" element={<LeaseFormPage />} />
+          <Route path="/tenant/dashboard" element={<TenantDashboardPage />} />
+          <Route path= "/leases/:leaseId/vacate" element={<VacateFormPage />} />
+
+        </Routes>
+      </Shell>
 
         {/* Your existing dashboard page (which currently says "Landlord Dashboard")
             might be renamed or merged with the new LandlordDashboard
@@ -53,5 +67,3 @@ function App() {
 
 
 
-
-export default App;
