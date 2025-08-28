@@ -221,8 +221,8 @@ class DashboardResource(Resource):
             if user.role == "landlord":
                 dashboard_data.update({
                     "properties_count": 0, # To be implemented by Ian
-                    "tenants_count": 0, # To be populated later
-                    "recent_notifications": [] # Extended features
+                    "tenants_count": 0, # To be populated later. Harriet to check on this
+                    "recent_notifications": [] 
                 })
             elif user.role == "tenant":
                 active_leases = Lease.query.filter_by(tenant_id = user.id,status ="active").count()
@@ -353,6 +353,11 @@ class LandlordDashboardResource(Resource):
             if not landlord:
                 return {"message": "Landlord not found"}, 404
 
+            # Notification counts
+            unread_notifications = Notification.query.filter_by(recipient_id=landlord.id, is_read=False).count()
+            recent_notifications = Notification.query.filter_by(recipient_id=landlord.id).order_by(Notification.created_at.desc()).limit(5).all()
+            recent_broadcasts = Notification.query.filter_by(sender_id=landlord.id, is_broadcast=True).order_by(Notification.created_at.desc()).limit(5).all()
+
             # Dashboard data structure for landlord
             dashboard_data = {
                 "landlord_info": {
@@ -403,6 +408,18 @@ class TenantDashboardResource(Resource):
 
             if not tenant:
                 return {"message": "Tenant not found"}, 404
+            
+            # Notification counts
+            unread_notifications = Notification.query.filter(
+                ((Notification.recipient_id == tenant.id) | (Notification.is_broadcast == True)) & (Notification.is_read == False)
+            ).count()
+            recent_notifications  = Notification.query.filter(
+                (Notification.recipient_id == tenant.id) | (Notification.is_broadcast == True)
+            ).order_by(Notification.created_at.desc()).limit(5).all()
+
+            #Active lease information
+            active_lease = Lease.query.filter_by(tenant_id=tenant.id, status="active").first()
+
             
             #Dashboard data structure for tenant
             dashboard_data = {
@@ -475,6 +492,13 @@ class AdminDashboardResource(Resource):
             from datetime import datetime, timedelta
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             recent_registrations = User.query.filter(User.created_at >= thirty_days_ago).count()
+
+            # Notification statistics
+            total_notifications = Notification.query.count()
+            broadcast_notifications = Notification.query.filter_by(is_roadcast=True).count()
+            unread_notifications = Notification.query.filter_by(is_read=False).count()
+            recent_system_notifications = Notification.query.filter_by(recipient_id=admin.id).order_by(Notification.created_at.desc()).limit(5).all()
+
 
             dashboard_data = {
                 "admin_info": {
@@ -894,6 +918,283 @@ class LeaseVacateApprovalResource(Resource):
             db.session.rollback()
             return {"error": str(e)}, 500
 
+class NotificationListResource(Resource):
+    @jwt_required()
+    def get(self):
+        """Get notifications for the current user"""
+        try:
+            user_id = get_jwt_identity()
+            user = User.query.filter_by(public_id=user_id).first()
+
+            if not user:
+                return {"message": "User not found"}, 404
+
+            notifications = Notification.query.filter((Notification.recipient_id == user.id) | (Notification.is_broadcast == True)).order_by(Notification.created_at.desc()).all()
+
+            notification_type = request.args.get('type')
+            unread_only = request.args.get('unread_only') == "true"
+
+            if notification_type:
+                notifications = [n for n in notifications if n.notification_type == notification_type]
+            if unread_only:
+                notifications = [n for n in notifications if not n.is_read]
+
+            return {
+                "notifications": [notification.to_dict() for notification in notifications],
+                "unread_count": len([n for n in notifications if not n.is_read])
+            }, 200
+        except Exception as e:
+            return {"message": "Error fetching notifications", "error": str(e)}, 500
+
+    @roles_required('landlord', 'admin')
+    def post(self):
+        """Send message to tenants"""
+        try:
+            user_id = get_jwt_identity()
+            sender = User.query.filter_by(public_id=user_id).first()
+
+            if not sender:
+                return {"message": "Sender not found"}, 404
+
+            data = request.get_json() or {}
+
+            required_fields = ["title", "message"]
+            for field in required_fields:
+                if field not in data or not str(data[field]).strip():
+                    return {"message": f"{field} is required"}, 400
+
+            title = data.get("title").strip()
+            message = data.get("message").strip()
+            notification_type = data.get("notification_type", "general")
+            recipient_id = data.get("recipient_id")
+            is_broadcast = data.get("is_broadcast", False)
+
+
+            if is_broadcast:
+                tenants = User.query.filter_by(role="tenant", is_active=True).all()
+
+                if not tenants:
+                    return {"message": "No active tenants found"}, 404
+                
+                notifications_created = []
+                for tenant in tenants:
+                    notification = Notification(
+                        sender_id=sender.id,
+                        recipient_id=tenant.id,
+                        title=title,
+                        message=message,
+                        notification_type=notification_type,
+                        is_broadcast=True
+                    )
+                    db.session.add(notification)
+                    notifications_created.append({
+                        "recipient": f"{tenant.first_name} {tenant.last_name}",
+                        "recipient_email": tenant.email
+                    })
+                db.session.commit()
+                return {
+                    "message": f"Broadcast notification sent to {len(tenants)} tenant(s)",
+                    "recipients": notifications_created,
+                    "notification_details": {
+                        "title": title,
+                        "message": message,
+                        "type": notification_type
+                    }
+                }, 201
+            else:
+                if not recipient_id:
+                    return {"message": "recipient_id is required for non-broadcast messages"}, 400
+
+                recipient = User.query.filter_by(public_id=recipient_id, role="tenant", is_active=True).first()
+                if not recipient:
+                    return {"message": "Recipient tenant not found"}, 404
+
+                notification = Notification(
+                    sender_id=sender.id,
+                    recipient_id=recipient.id,
+                    title=title,
+                    message=message,
+                    notification_type=notification_type,
+                    is_broadcast=False
+                )
+                db.session.add(notification)
+                db.session.commit()
+
+                return {
+                    "message": "Notification sent successfully",
+                    "notification": notification.to_dict()
+                }, 201
+        except ValueError as ve:
+            return {"message": str(ve)}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Error creating notification", "error": str(e)}, 500
+
+class NotificationResource(Resource):
+    @jwt_required()
+    def get(self, notification_id):
+        """Get a specific notification"""
+        try:
+            user_id = get_jwt_identity()
+            user = User.query.filter_by(public_id=user_id).first()
+
+            if not user:
+                return {"message": "User not found"}, 404
+
+            notification = Notification.query.get(notification_id)
+            if not notification:
+                return {"message": "Notification not found"}, 404
+
+            # Check if user can access this notification
+            if (notification.recipient_id != user.id and not notification.is_broadcast and notification.sender_id != user.id):
+                return {"message": "Unauthorized"}, 403
+            return {"notification": notification.to_dict()}, 200
+        except Exception as e:
+            return {"message": "Error fetching notification", "error": str(e)}, 500
+
+    @jwt_required()
+    def patch(self, notification_id):
+        try:
+            user_id = get_jwt_identity()
+            user = User.query.filter_by(public_id=user_id).first()
+
+            if not user:
+                return{"message": "User not found"}, 404
+
+            notification = Notification.query.get(notification_id)
+            if not notification:
+                return {"message": "Notification not found"}, 404
+            
+            if notification.recipient_id != user.id and not notification.is_broadcast:
+                return {"message": "Unauthorized"}, 403
+
+            data = request.get_json() or {}
+            if "is_read" in data:
+                is_read = bool(data["is_read"])
+                if is_read:
+                    notification.mark_as_read()
+                else:
+                    notification.is_read = False
+                    notification.read_at = None
+                db.session.commit()
+
+                return {
+                    "message": f"Notification marked as {'read' if is_read else 'unread'}",
+                    "notification": notification.to_dict()
+                }, 200
+            return {"message": "No valid update provided"}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Error updating notification", "error": str(e)}, 500
+    
+    @roles_required('landlord', 'admin')
+    def delete(self, notification_id):
+        try:
+            user_id = get_jwt_identity()
+            user = User.query.filter_by(publi_id=user_id).first()
+
+            notification = Notification.query.get(notification_id)
+            if not notification:
+                return {"message": "Notification not found"}, 404
+            
+            if notification.sender_id != user.id:
+                return {"message": "Unauthorized - only sender can delete"}, 403
+            db.session.delete()
+            db.session.commit()
+            return {"message": "Notification deleted successfully"}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Error deleting notification", "error": str(e)}, 500
+        
+class BroadcastNotificationResource(Resource):
+    @roles_required()
+    def post(self):
+        try:
+            user_id = get_jwt_identity()
+            sender = User.query.filter_by(public_id=user_id).first()
+
+            if not sender:
+                return {"message": "Sender not found"}, 404
+            
+            data = request.get_json() or {}
+
+            required_fields = ["title", "message"]
+            for field in required_fields:
+                if field not in data or not str(data[field]).strip():
+                    return {"message": f"{field} is required"}, 400
+
+            title = data.get('title').strip()
+            message = data.get('message').strip()
+            notification_type = data.get('notification_type', 'general')
+
+            tenants = User.query.filter_by(role='tenant', is_active=True).all()
+            if not tenants:
+                return {"message": "No active tenants found to send broadcast"}, 404
+
+            notifications_sent = []
+            for tenant in tenants:
+                notification = Notification(
+                    sender_id=sender=id,
+                    recipient_id=tenant.id,
+                    title=title,
+                    message=message,
+                    notification_type=notification_type,
+                    is_broadcast=True
+                )
+                db.session.add(notification)
+                notifications_sent.append(f"{tenant.first_name} {tenant.last_name}")
+            db.session.commit()
+            return {
+                "message": f"Broadcast sent successfully to {len(tenants)} tenant(s)",
+                "broadcast_details": {
+                    "title": title,
+                    "message": message,
+                    "type": notification_type,
+                    "sender": f"{sender.first_name} {sender.last_name}",
+                    "recipients_count": len(tenants),
+                    "recipients": notifications_sent
+                }
+            }, 201
+        except ValueError as ve:
+            return {"message": str(ve)}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Error sending broadcast", "error": str(e)}, 500
+
+class TenantListResource(Resource):
+    @roles_required('landlord', 'admin')
+    def get(self):
+        try:
+            tenants = User.query.filter_by(role='tenants', is_active=True).all()
+            tenant_list = []
+            for tenant in tenants:
+                active_lease = Lease.query.filter_by(tenant_id=tenant.id, status="active").first()
+                tenant_info = {
+                    "public_id": tenant.public_id,
+                    "email": tenant.email,
+                    "phone": tenant.phone_number,
+                    "has_active_lease": bool(active_lease),
+                    "lease_info": None
+                }
+                if active_lease:
+                    tenant_info["lease_info"] = {
+                        "lease_id": active_lease.id,
+                        "rent_amount": active_lease.rent_amount,
+                        "start_date": active_lease.start_date.isoformat(),
+                        "end_date": active_lease.end_date.isoformat() if active_lease.end_date else None
+                    }
+                tenant_list.append(tenant_info)
+            return {
+                "tenants": tenant_list,
+                "total_count": len(tenant_list)
+            }, 200
+        except Exception as e:
+            return {"message": "Error fetching tenant list"}
+
+
+
+
+
 
 
 
@@ -918,3 +1219,7 @@ api.add_resource(BillListResource, "/bills")
 api.add_resource(BillResource, "/bills/<int:bill_id>")
 api.add_resource(LeaseVacateResource, "/leases/<int:lease_id>/vacate")
 api.add_resource(LeaseVacateApprovalResource, "/leases/<int:lease_id>/vacate/approval") 
+api.add_resource(NotificationListResource, "/notifications")
+api.add_resource(NotificationResource, "/notifications/<int:notification_id>")
+# api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
+# api.add_resource(TenantListResource, "/tenants")

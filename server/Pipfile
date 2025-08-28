@@ -16,7 +16,6 @@ flask-sqlalchemy = "*"
 flask-migrate = "*"
 python-dateutil = "*"
 
-
 [dev-packages]
 
 [requires]

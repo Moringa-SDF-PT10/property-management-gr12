@@ -9,6 +9,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from datetime import timedelta
 
+app = Flask(__name__)
 
 def create_app():
     app = Flask(__name__)
@@ -23,19 +24,16 @@ def create_app():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-    # Enable CORS for your frontend
-    CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
-    
     db.init_app(app)
     jwt = JWTManager(app)
     migrate = Migrate (app, db)
 
+    # Enable CORS for your frontend
+    CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
+    
 
-    from routes import api as routes_api
-    from views import *
-
-    api = Api(app)
-    routes_api.init_app(app)
+    api = Api()
+   
 
     # Register resources
     api.add_resource(PropertyListResource, "/properties")
@@ -47,7 +45,7 @@ def create_app():
         return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
     return app
-
+from views import *
 # Run the app
 if __name__ == "__main__":
     app = create_app()

@@ -1,6 +1,6 @@
 # routes.py
 from flask_restful import Resource
-from flask import request
+from flask import request, send_from_directory
 from werkzeug.utils import secure_filename
 import os, json, uuid
 from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt

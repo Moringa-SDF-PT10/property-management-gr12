@@ -100,7 +100,7 @@ class User(db.Model, SerializerMixin):
         return role in VALID_ROLES
       
 class Property(db.Model):
-       __tablename__ = "properties"
+    __tablename__ = "properties"
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
