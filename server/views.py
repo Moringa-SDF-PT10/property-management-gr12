@@ -1137,7 +1137,7 @@ class BroadcastNotificationResource(Resource):
             notifications_sent = []
             for tenant in tenants:
                 notification = Notification(
-                    sender_id=sender=id,
+                    sender_id=sender.id,
                     recipient_id=tenant.id,
                     title=title,
                     message=message,
