@@ -5,7 +5,9 @@ import DashboardPage from "./pages/DashboardPage";
 import PropertiesListPage from "./pages/PropertiesListPage";
 import PropertyDetailsPage from "./pages/PropertyDetailsPage";
 import PropertyFormPage from "./pages/PropertyFormPage";
-
+import LeaseFormPage from "./pages/LeaseFormPage";
+import TenantDashboardPage from "./pages/TenantDashboardPage";
+import VacateFormPage from "./pages/VacateFormPage";
 export default function App() {
   return (
 
@@ -17,6 +19,9 @@ export default function App() {
           <Route path="/properties/new" element={<PropertyFormPage />} />
           <Route path="/properties/:id" element={<PropertyDetailsPage />} />
           <Route path="/properties/:id/edit" element={<PropertyFormPage />} />
+          <Route path="/leases/new" element={<LeaseFormPage />} />
+          <Route path="/tenant/dashboard" element={<TenantDashboardPage />} />
+          <Route path="/vacate/:leaseId" element={<VacateFormPage />} />
           
         </Routes>
       </Shell>
