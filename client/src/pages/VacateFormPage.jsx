@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { submitVacate } from "../api/api";
 
-const VacateFormPage = ({ leaseId }) => {
+const VacateFormPage = () => {
   const [noticeDate, setNoticeDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const { leaseId } = useParams(); // <-- get leaseId from URL
 
   const handleSubmit = async (e) => {
     e.preventDefault();

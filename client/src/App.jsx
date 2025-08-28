@@ -19,9 +19,9 @@ export default function App() {
           <Route path="/properties/new" element={<PropertyFormPage />} />
           <Route path="/properties/:id" element={<PropertyDetailsPage />} />
           <Route path="/properties/:id/edit" element={<PropertyFormPage />} />
-          <Route path="/leases/new" element={<LeaseFormPage />} />
+          <Route path="/leases-booking" element={<LeaseFormPage />} />
           <Route path="/tenant/dashboard" element={<TenantDashboardPage />} />
-          <Route path="/vacate/:leaseId" element={<VacateFormPage />} />
+          <Route path= "/leases/:leaseId/vacate" element={<VacateFormPage />} />
           
         </Routes>
       </Shell>
