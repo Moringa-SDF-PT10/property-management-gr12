@@ -10,6 +10,9 @@ import re
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
+
+
+
 # -------------------- CONFIG -------------------- #
 UPLOAD_FOLDER = "uploads/properties"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}

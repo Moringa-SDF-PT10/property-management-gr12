@@ -15,6 +15,9 @@ python-dotenv = "*"
 flask-sqlalchemy = "*"
 flask-migrate = "*"
 python-dateutil = "*"
+requests = "*"
+twilio = "*"
+celery = "*"
 
 [dev-packages]
 

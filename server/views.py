@@ -1,15 +1,18 @@
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api, reqparse
 from flask import request, jsonify, render_template, flash, redirect, url_for, make_response
-from models import db, User,Lease,Bill, Notification
+from models import db, User, Lease, Bill, Notification, Payment, RepairRequest
 from flask_jwt_extended import create_access_token, create_refresh_token, JWTManager, get_jwt_identity, get_jwt, get_jti, jwt_required, verify_jwt_in_request
-from app import app
+import base64
 from functools import wraps
 import re
+import requests, os
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from utils import send_email, send_sms
 
-api = Api(app)
-jwt = JWTManager(app)
+
+api = Api()
+jwt = JWTManager()
 
 jwt_blocklist = set()
 
@@ -146,7 +149,7 @@ class RefreshResource(Resource):
             user = User.query.filter_by(public_id=user_id).first()
             if not user or not user.is_active:
                 return {"message": "User not found or inactive"}, 404
-            
+
             claims = { "role": user.role, "email": user.email, "isActive": user.is_active }
             access_token = create_access_token(identity=user_id, additional_claims=claims)
 
@@ -211,7 +214,7 @@ class DashboardResource(Resource):
 
             if not user:
                 return {"message": "User not found"}, 404
-            
+
             dashboard_data = {
                 "User": user.to_dict(),
                 "role": user.role,
@@ -325,7 +328,7 @@ class UserProfileDashboardResource(Resource):
             }, 200
         except Exception as e:
             return {"message": "Error fetching profile data", "error": str(e)}, 500
-    
+
     def _calculate_profile_completion(self, user):
         required_fields = ["username", "email", "first_name", "last_name", "phone_number", "national_id"]
         completed_fields = 0
@@ -420,7 +423,7 @@ class TenantDashboardResource(Resource):
             #Active lease information
             active_lease = Lease.query.filter_by(tenant_id=tenant.id, status="active").first()
 
-            
+
             #Dashboard data structure for tenant
             dashboard_data = {
                 "tenant_info": {
@@ -561,7 +564,7 @@ class UserManagementResource(Resource):
             user = User.query.filter_by(public_id=user_id).first()
             if not user:
                 return {"message": "User not found"}, 404
-            
+
             data = request.get_json() or {}
             if "is_active" in data:
                 user.is_active = bool(data["is_active"])
@@ -569,7 +572,7 @@ class UserManagementResource(Resource):
 
                 status = "activated" if user.is_active else "deactivated"
                 return {
-                    "message": f"User {status} successfully", 
+                    "message": f"User {status} successfully",
                     "user": user.to_dict()
                 }, 200
             return {"message": "No valid action provided"}, 400
@@ -586,7 +589,7 @@ class HealthCheckResource(Resource):
             "message": "Property Management API is running",
             "api_version": "1.0.0"
         }, 200
-    
+
 def tenant_required(fn):
     @wraps(fn)
     @jwt_required()
@@ -618,7 +621,7 @@ class LeaseListResource(Resource):
             leases = Lease.query.all()
 
         return {"leases": [lease.to_dict() for lease in leases]}, 200
-    
+
     @tenant_required
     def post(self):
         data = request.get_json() or {}
@@ -644,12 +647,12 @@ class LeaseListResource(Resource):
             new_bill = Bill(
                 lease_id=lease.id,
                 amount=lease.rent_amount,
-                due_date=start_date + relativedelta(months=1),   
+                due_date=start_date + relativedelta(months=1),
                 status="unpaid"
             )
             db.session.add(new_bill)
             db.session.commit()
-            return {"message": "Lease created with initial bill", 
+            return {"message": "Lease created with initial bill",
                     "lease": lease.to_dict(),
                     "bill": new_bill.to_dict()
                     }, 201
@@ -658,27 +661,27 @@ class LeaseListResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": "Failed to create lease", "error": str(e)}, 500
-        
+
 class LeaseResource(Resource):
     @jwt_required()
     def get(self, lease_id):
         lease = Lease.query.get(lease_id)
         if not lease:
             return {"message": "Lease not found"}, 404
-        
+
         role = get_jwt().get("role")
         user = User.query.filter_by(public_id=get_jwt_identity()).first()
         if role == "tenant" and lease.tenant_id != user.id:
             return {"message": "Unauthorized"}, 403
 
-        
+
         return {"lease": lease.to_dict()}, 200
     @landlord_or_admin_required
     def patch(self, lease_id):
         lease = Lease.query.get(lease_id)
         if not lease:
             return{"message": "Lease not found"}, 404
-        
+
         data = request.get_json() or {}
         updated_fields = []
 
@@ -695,7 +698,7 @@ class LeaseResource(Resource):
                 updated_fields.append("rent_amount")
             except ValueError:
                 return {"message": "Invalid rent amount"}, 400
-            
+
         if "end_date" in data:
             try:
                 lease.end_date = datetime.fromisoformat(data["end_date"]).date()
@@ -713,7 +716,7 @@ class LeaseResource(Resource):
                 return {"message": "Failed to update lease", "error": str(e)}, 500
         else:
             return {"message": "No valid fields to update"}, 400
-        
+
     @landlord_or_admin_required
     def delete(self, lease_id):
         lease = Lease.query.get(lease_id)
@@ -727,7 +730,7 @@ class LeaseResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": "Failed to delete lease", "error": str(e)}, 500
-        
+
 class BillListResource(Resource):
     @jwt_required()
     def get(self):
@@ -743,7 +746,7 @@ class BillListResource(Resource):
             bills = Bill.query.all()
 
         return {"bills":[bill.to_dict() for bill in bills]},200
-    
+
     @landlord_or_admin_required
     def post(self):
         """Create a new bill (by landlord/admin)"""
@@ -755,7 +758,7 @@ class BillListResource(Resource):
             lease = Lease.query.get(data["lease_id"])
             if not lease:
                 return {"message": "Lease not found"}, 404
-            
+
             # Default due_date = one month after lease.start_date
             due_date = (lease.start_date + relativedelta(months=1))
 
@@ -772,10 +775,10 @@ class BillListResource(Resource):
             db.session.add(new_bill)
             db.session.commit()
             return new_bill.to_dict(), 201
-        
+
         except ValueError as ve:
             return {"message": str(ve)}, 400
-        
+
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
@@ -837,7 +840,7 @@ class BillResource(Resource):
         db.session.delete(bill)
         db.session.commit()
         return {"message": "Bill deleted successfully"}, 200
-    
+
 class LeaseVacateResource(Resource):
     @jwt_required()
     def put(self, lease_id):
@@ -1195,31 +1198,410 @@ class TenantListResource(Resource):
 
 
 
+def get_access_token():
+    consumer_key = os.getenv('MPESA_CONSUMER_KEY')
+    consumer_secret = os.getenv("MPESA_CONSUMER_SECRET")
+    if not consumer_key or not consumer_secret:
+        return None
+
+    auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+
+    try:
+        res = requests.get(auth_url, auth=(consumer_key, consumer_secret))
+        if res.status_code == 200:
+            return res.json()["access_token"]
+    except Exception:
+        pass
+    return None
+
+class PaymentInitResource(Resource):
+    @jwt_required()
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('lease_id', type=int, required=True)
+        parser.add_argument('amount', type=float, required=True)
+        parser.add_argument('phone_number', type=str, required=True)
+        args = parser.parse_args()
+
+        # Check Lease ownership
+        lease = Lease.query.get(args['lease_id'])
+        if not lease:
+            return {'error': 'Lease not found'},404
+
+        # Check if user is tenant of the lease or admin/landlord
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        if current_user.role == 'tenant' and lease.tenant_id != current_user_id:
+            return {"error": "Unauthorized access to lease"}
 
 
 
+       # Generete Safaricom password
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        raw_password = f"{os.getenv('MPESA_SHORTCODE')}{os.getenv('MPESA_PASSKEY')}{timestamp}"
+        password = base64.b64encode(raw_password.encode()).decode("utf-8")
 
-api.add_resource(RegisterResource, "/auth/register")
-api.add_resource(LoginResource, "/auth/login")
-api.add_resource(LogoutResource, "/auth/logout")
-api.add_resource(RefreshResource, "/auth/refresh")
-api.add_resource(ProfileResource, "/auth/profile")
-api.add_resource(DashboardResource, "/auth/dashboard")
-api.add_resource(UsersResource, "/auth/users")
-api.add_resource(HealthCheckResource, "/health")
-api.add_resource(UserManagementResource, "/auth/users/<string:user_id>")
-api.add_resource(LandlordDashboardResource, "/dashboard/landlord")
-api.add_resource(TenantDashboardResource, "/dashboard/tenant") 
-api.add_resource(AdminDashboardResource, "/dashboard/admin")
-api.add_resource(DashboardStatsResource, "/dashboard/stats")
-api.add_resource(UserProfileDashboardResource, "/dashboard/profile")
-api.add_resource(LeaseListResource, "/leases")
-api.add_resource(LeaseResource, "/leases/<int:lease_id>")
-api.add_resource(BillListResource, "/bills")
-api.add_resource(BillResource, "/bills/<int:bill_id>")
-api.add_resource(LeaseVacateResource, "/leases/<int:lease_id>/vacate")
-api.add_resource(LeaseVacateApprovalResource, "/leases/<int:lease_id>/vacate/approval") 
-api.add_resource(NotificationListResource, "/notifications")
-api.add_resource(NotificationResource, "/notifications/<int:notification_id>")
-api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
-api.add_resource(TenantListResource, "/tenants")
+        if not args.get('phone_number'):
+            return {"error": "Phone number required for M-Pesa"}
+
+
+        # Prepare STK push
+        payload = {
+            "BusinessShortCode": os.getenv("MPESA_SHORTCODE"),
+            "Password": password,
+            "Timestamp": timestamp,
+            "TransactionType": "CustomerPaybillOnline",
+            "Amount": int(args["amount"]),
+            "PartyA": args["phone_number"], # tenant phone
+            "PartyB": os.getenv("MPESA_SHORTCODE"),
+            "PhoneNumber": args["phone_number"],
+            "CallBackUrl": f"{os.getenv('MPESA_CALLBACK_URL')}/payments/mpesa/callback",
+            "AccountReference": f"Lease-{lease.id}",
+            "TransactionDesc": f"Rent Payment for lease {lease.id}"
+        }
+
+        headers = {
+            "Authorization": f"Bearer {os.getenv('MPESA_ACCESS_TOKEN')}",
+            "Content-Type": "application/json",
+        }
+        res = requests.post(
+            "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+            json=payload,
+            headers=headers,
+        )
+        res_json = res.json()
+
+        if res.status_code != 200 or "CheckoutRequestID" not in res_json:
+            return {"error": "Failed to initiate payment", "details": res_json}, 400
+
+        # Create payment record
+        payment = Payment(
+            lease_id = lease.id,
+            amount = args["amount"],
+            status = 'pending',
+            transaction_id = res_json["CheckoutRequestID"]
+        )
+        db.session.add(payment)
+        db.session.commit()
+
+
+        return {
+            "message": "Payment initiated. Check your phone for prompt",
+            "payment_id": payment.id
+        }, 201
+
+class MpesaCallbackResource(Resource): # called after user approves payment
+    def post(self):
+        body = request.json
+        try:
+            if not body:
+                return {"error": "Invalid callback"}, 400
+
+            result = body.get("Body", {}).get("stkCallback", {})
+            checkout_id = result.get("CheckoutRequestID")
+            result_code = result.get("ResultCode")
+
+            payment = Payment.query.filter_by(transaction_id=checkout_id).first()
+            if not payment:
+                return {"error": "Payment not found"}, 404
+
+            if result_code == 0:  # Success
+                payment.status = "completed"
+            else:  # Failed or cancelled
+                payment.status = "failed"
+
+            db.session.commit()
+            return {"message": "Callback processed"}, 200
+
+        except Exception as e:
+            return {"error": f"Callback processing failed: {str(e)}"}, 500
+
+    def send_payment_notifications(self, payment): # Send notifications after successful payment
+        lease = payment.lease
+        tenant = lease.tenant
+
+        # Create notification record
+        notification = Notification(
+            sender_id=tenant.id,
+            notification_type='payment_received',
+            title=f'Payment Received - {payment.payment_type.title()}',
+            body=f'Payment of ${payment.amount} for {payment.payment_type} has been received for lease #{lease.id}.',
+            audience='landlord',
+            metadata={
+                'payment_id': payment.id,
+                'lease_id': lease.id,
+                'amount': payment.amount
+            }
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+class PaymentStatusResource(Resource):
+    @jwt_required()
+    def get(self, payment_id):
+        current_user_id = get_jwt_identity
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return {"error": "Payment not found"}, 404
+
+        # Check access permissions
+        current_user = User.query.get(current_user_id)
+        if current_user.role == 'tenant' and payment.lease.tenant_id != current_user_id:
+            return {"error": "Unauthorized"}, 403
+
+        return {
+            "id": payment.id,
+            "lease_id": payment.lease_id,
+            "amount": payment.amount,
+            "status": payment.status,
+            "transaction_id": payment.transaction_id,
+        }, 200
+
+class PaymentHistoryResource(Resource): # Get payment history for a lease
+    @jwt_required()
+    def get(self, lease_id):
+        current_user_id = get_jwt_identity()
+        lease = Lease.query.get(lease_id)
+
+        if not lease:
+            return {"error": "Lease not found"}, 404
+
+        # Check access permissions
+        current_user = User.query.get(current_user_id)
+        if (current_user.role == 'tenant' and lease.tenant_id != current_user_id):
+            return {"error": "Unauthorized"}, 403
+
+        payments = Payment.query.filter_by(lease_id=lease_id).order_by(Payment.created_at.desc()).all()
+        return {
+            'lease_id': lease_id,
+            'payments': [payment.to_dict() for payment in payments],
+            'total_paid': sum(p.amount for p in payments if p.status == 'completed'),
+            'rent_status': {
+                'is_up_to_date': lease.is_rent_up_to_date(),
+                'days_behind': lease.days_behind_rent(),
+                'outstanding_amount': lease.calculate_outstanding_rent()
+            }
+        }, 200
+
+class LandlordPaymentDashboardResource(Resource): # Dashboard data for landlords
+    @jwt_required()
+    def get(self):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+
+        if current_user.role not in ['landlord', 'admin']:
+            return {"error": "Unauthorized"}, 403
+
+        # Get all leases (landlords would have property filtering here)
+        leases = Lease.query.filter_by(status='active').all()
+
+        up_to_date = []
+        behind_rent = []
+
+        for lease in leases:
+            lease_data = lease.to_dict_with_payment_status()
+            if lease.is_rent_up_to_date():
+                up_to_date.append(lease_data)
+            else:
+                behind_rent.append(lease_data)
+
+        # Calculate summary statistics
+        total_expected_rent = sum(lease.rent_amount for lease in leases)
+        total_collected = sum(p.amount for lease in leases
+                            for p in lease.payments
+                            if p.status == 'completed' and p.payment_type == 'rent')
+
+        return {
+            'summary': {
+                'total_leases': len(leases),
+                'up_to_date_count': len(up_to_date),
+                'behind_count': len(behind_rent),
+                'collection_rate': round((total_collected / total_expected_rent * 100), 2) if total_expected_rent > 0 else 0
+            },
+            'up_to_date_tenants': up_to_date,
+            'behind_tenants': behind_rent
+        }, 200
+
+
+
+    
+
+class RentReminderResource(Resource):
+    """Send rent reminders (automated system)"""
+    @jwt_required()
+    def post(self):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+
+        if current_user.role not in ['admin', 'landlord']:
+            return {"error": "Unauthorized"}, 403
+
+        # Find leases with overdue rent
+        overdue_leases = []
+        for lease in Lease.query.filter_by(status='active').all():
+            if not lease.is_rent_up_to_date():
+                overdue_leases.append(lease)
+
+        reminders_sent = 0
+        for lease in overdue_leases:
+            # Create notification
+            notification = Notification(
+                sender_id=current_user_id,
+                recipient_id=lease.tenant_id,
+                notification_type='rent_reminder',
+                title='Rent Payment Reminder',
+                body=f'Your rent payment of ${lease.rent_amount} is overdue by {lease.days_behind_rent()} days. Please make payment as soon as possible.',
+                audience='tenant',
+                metadata={'lease_id': lease.id, 'amount_due': lease.calculate_outstanding_rent()}
+            )
+            db.session.add(notification)
+
+            # Send email/SMS (implement these functions)
+            try:
+                send_email(lease.tenant.email, notification.title, notification.body)
+                notification.is_email_sent = True
+            except:
+                pass
+
+            try:
+                send_sms(lease.tenant.phone_number, f"{notification.title}: {notification.body}")
+                notification.is_sms_sent = True
+            except:
+                pass
+
+            reminders_sent += 1
+
+        db.session.commit()
+        return {"message": f"Sent {reminders_sent} rent reminders"}, 200
+
+# Repair request routes
+class RepairRequestResource(Resource):
+    """Handle repair requests"""
+    @jwt_required()
+    def get(self):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+
+        if current_user.role == 'tenant':
+            requests = RepairRequest.query.filter_by(tenant_id=current_user_id).order_by(RepairRequest.created_at.desc()).all()
+        else:
+            # Admin/landlord can see all requests
+            requests = RepairRequest.query.order_by(RepairRequest.created_at.desc()).all()
+
+        return [req.to_dict() for req in requests], 200
+
+    @jwt_required()
+    def post(self):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+
+        if current_user.role != 'tenant':
+            return {"error": "Only tenants can create repair requests"}, 403
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('property_id', type=int, required=True)
+        parser.add_argument('title', type=str, required=True)
+        parser.add_argument('description', type=str, required=True)
+        parser.add_argument('category', type=str, default='general')
+        parser.add_argument('priority', type=str, default='normal')
+        args = parser.parse_args()
+
+        # Verify tenant has lease for this property
+        lease = Lease.query.filter_by(
+            tenant_id=current_user_id,
+            property_id=args['property_id'],
+            status='active'
+        ).first()
+
+        if not lease:
+            return {"error": "No active lease found for this property"}, 403
+
+        repair_request = RepairRequest(
+            tenant_id=current_user_id,
+            property_id=args['property_id'],
+            lease_id=lease.id,
+            title=args['title'],
+            description=args['description'],
+            category=args['category'],
+            priority=args['priority']
+        )
+
+        db.session.add(repair_request)
+        db.session.commit()
+
+        # Create notification for landlord
+        notification = Notification(
+            sender_id=current_user_id,
+            notification_type='repair_request',
+            title='New Repair Request',
+            body=f'New {args["priority"]} priority repair request: {args["title"]}',
+            audience='landlord',
+            metadata={'repair_request_id': repair_request.id}
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        return repair_request.to_dict(), 201
+
+class RepairRequestDetailResource(Resource):
+    """Handle individual repair request operations"""
+    @jwt_required()
+    def get(self, request_id):
+        repair_request = RepairRequest.query.get(request_id)
+        if not repair_request:
+            return {"error": "Repair request not found"}, 404
+
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+
+        # Check access permissions
+        if (current_user.role == 'tenant' and
+            repair_request.tenant_id != current_user_id):
+            return {"error": "Unauthorized"}, 403
+
+        return repair_request.to_dict(), 200
+
+    @jwt_required()
+    def patch(self, request_id):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+
+        if current_user.role not in ['admin', 'landlord']:
+            return {"error": "Unauthorized"}, 403
+
+        repair_request = RepairRequest.query.get(request_id)
+        if not repair_request:
+            return {"error": "Repair request not found"}, 404
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('status', type=str)
+        parser.add_argument('notes', type=str)
+        parser.add_argument('estimated_cost', type=float)
+        parser.add_argument('assigned_to', type=str)
+        args = parser.parse_args()
+
+        if args['status']:
+            repair_request.update_status(args['status'], args.get('notes'))
+
+        if args['estimated_cost']:
+            repair_request.estimated_cost = args['estimated_cost']
+
+        if args['assigned_to']:
+            repair_request.assigned_to = args['assigned_to']
+
+        db.session.commit()
+
+        # Send notification to tenant about update
+        notification = Notification(
+            sender_id=current_user_id,
+            recipient_id=repair_request.tenant_id,
+            notification_type='repair_update',
+            title='Repair Request Update',
+            body=f'Your repair request "{repair_request.title}" has been updated to {repair_request.status}.',
+            audience='tenant',
+            metadata={'repair_request_id': repair_request.id}
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        return repair_request.to_dict(), 200

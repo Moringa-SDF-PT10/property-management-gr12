@@ -19,10 +19,22 @@ LEASE_STATUSES = ("active", "terminated", "expired", "pending")
 BILL_STATUSES = ("unpaid", "paid")
 VACATE_STATUSES = ("pending", "approved", "rejected", "completed")
 
+PENDING = 'pending'
+SUCCESSFUL = 'successful'
+FAILED = 'failed'
+REFUNDED = 'refunded'
+PAYMENT_STATUS = {PENDING, SUCCESSFUL, FAILED, REFUNDED}
+
+OPEN = 'open'
+IN_PROGRESS = 'in progress'
+CLOSED = 'closed'
+REPAIR_REQUEST_STATUS = {OPEN, IN_PROGRESS, CLOSED}
+
+
 
 class User(db.Model, SerializerMixin):
     __tablename__ = "users"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.String(50), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(100), unique=True, nullable=False)
@@ -98,16 +110,16 @@ class User(db.Model, SerializerMixin):
     @staticmethod
     def validate_role_static(role):
         return role in VALID_ROLES
-      
-class Property(db.Model):
+
+class Property(db.Model, SerializerMixin):
     __tablename__ = "properties"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     location = db.Column(db.String(150), nullable=False)
     rent = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), nullable=False, default="vacant")
-    pictures = db.Column(db.Text, nullable=True)  
+    pictures = db.Column(db.Text, nullable=True)
 
     leases = db.relationship("Lease", back_populates="property", cascade="all, delete-orphan")
 
@@ -120,8 +132,8 @@ class Property(db.Model):
             "status": self.status,
             "pictures": json.loads(self.pictures) if self.pictures else [],
         }
-     
-    
+
+
 
 class Lease(db.Model, SerializerMixin):
     __tablename__ = "leases"
@@ -140,8 +152,8 @@ class Lease(db.Model, SerializerMixin):
     tenant = db.relationship("User", back_populates="leases")
     property = db.relationship("Property", back_populates="leases")
     bills = db.relationship("Bill", back_populates="lease", cascade="all, delete-orphan")
-
-    serialize_rules = ("-tenant.leases", "-property.leases")
+    payments = db.relationship('Payment', back_populates='lease', cascade='all, delete-orphan')
+    serialize_rules = ("-tenant.leases", "-property.leases", "-bills.lease", "-payments.lease")
 
     @validates("end_date")
     def validate_dates(self, key, end_date):
@@ -159,12 +171,12 @@ class Lease(db.Model, SerializerMixin):
         if self.end_date and datetime.now().date() > self.end_date:
             return True
         return False
-    
+
     def duration_days(self):
         if self.end_date and self.start_date:
             return (self.end_date - self.start_date).days
         return 0
-    
+
     def request_vacate(self, date):
         """Tenant requests to vacate."""
         self.vacate_requested = True
@@ -179,7 +191,7 @@ class Lease(db.Model, SerializerMixin):
     def reject_vacate(self):
         """Landlord/admin rejects vacate request."""
         self.vacate_status = "rejected"
-        
+
     @validates("vacate_status")
     def validate_vacate_status(self, key, value):
         allowed_statuses = ["pending", "approved", "rejected", "completed"]
@@ -193,33 +205,33 @@ class Bill(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     lease_id = db.Column(db.Integer, db.ForeignKey("leases.id"), nullable=False)
-    amount = db.Column(db.Float, nullable=False)   
+    amount = db.Column(db.Float, nullable=False)
     due_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String, default="unpaid")  
+    status = db.Column(db.String, default="unpaid")
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
     lease = db.relationship("Lease", back_populates="bills")
 
-    serialize_rules = ("-lease.bills",) 
+    serialize_rules = ("-lease.bills",)
 
     @validates("amount")
     def validate_amount(self, key, value):
         if value <= 0:
             raise ValueError("Bill amount must be greater than 0")
         return value
-    
+
     @validates("status")
     def validate_status(self, key, value):
         if value not in ["unpaid", "paid"]:
             raise ValueError("Invalid status: must be 'unpaid' or 'paid'")
         return value
-    
+
     @validates("due_date")
     def validate_due_date(self, key, value):
         if value < date.today():
             raise ValueError("Due date cannot be in the past")
         return value
-    
+
     def pay(self):
         self.status = "paid"
 
@@ -281,3 +293,31 @@ class Notification(db.Model, SerializerMixin):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "read_at": self.read_at.isoformat() if self.read_at else None
         }
+
+class Payment(db.Model):
+    __tablename__ = 'payments'
+
+
+    id = db.Column(db.Integer, primary_key=True)
+    lease_id = db.Column(db.Integer, db.ForeignKey('leases.id'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    provider_id = db.Column(db.String(120))
+    status = db.Column(Enum(*PAYMENT_STATUS, name='status'))
+    transaction_id = db.Column(db.String, unique=True)
+    created_at = db.Column(db.DateTime, default =lambda: datetime.now(timezone.utc))
+
+    lease = db.relationship('Lease', back_populates= 'payments')
+
+
+class RepairRequest(db.Model):
+    __tablename__ = 'repairs'
+
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    title = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(Enum(*REPAIR_REQUEST_STATUS, name='status'))
+    priority = db.Column(db.String(20), default='normal')
+    created_at = db.Column(db.DateTime, default =lambda: datetime.now(timezone.utc))
