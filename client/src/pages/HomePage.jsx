@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Building2, Plus, User } from "lucide-react";
+import { Building2, Plus, User, LayoutDashboard } from "lucide-react"; // Added LayoutDashboard icon
 import OccupancyWidget from "../components/OccupancyWidget.jsx";
 import { Button } from "@/components/ui/button";
 
@@ -16,7 +16,7 @@ export default function HomePage() {
           >
             Welcome back, Landlord
           </motion.h1>
-          
+
           <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/properties">
               <Button className="rounded-xl">
@@ -26,6 +26,11 @@ export default function HomePage() {
             <Link to="/properties/new">
               <Button variant="secondary" className="rounded-xl">
                 <Plus className="h-4 w-4 mr-2" /> Add Property
+              </Button>
+            </Link>
+            <Link to="/landlord-dashboard"> {/* Added link to new dashboard */}
+              <Button variant="outline" className="rounded-xl">
+                <LayoutDashboard className="h-4 w-4 mr-2" /> View Full Dashboard
               </Button>
             </Link>
           </div>
