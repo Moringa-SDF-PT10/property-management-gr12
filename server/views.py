@@ -1189,7 +1189,7 @@ class TenantListResource(Resource):
                 "total_count": len(tenant_list)
             }, 200
         except Exception as e:
-            return {"message": "Error fetching tenant list"}
+            return {"message": "Error fetching tenant list", "error": str(e)}, 500
 
 
 
@@ -1221,5 +1221,5 @@ api.add_resource(LeaseVacateResource, "/leases/<int:lease_id>/vacate")
 api.add_resource(LeaseVacateApprovalResource, "/leases/<int:lease_id>/vacate/approval") 
 api.add_resource(NotificationListResource, "/notifications")
 api.add_resource(NotificationResource, "/notifications/<int:notification_id>")
-# api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
-# api.add_resource(TenantListResource, "/tenants")
+api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
+api.add_resource(TenantListResource, "/tenants")
