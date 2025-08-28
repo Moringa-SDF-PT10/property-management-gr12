@@ -11,7 +11,6 @@ from datetime import timedelta
 
 
 
-
 def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-key")
@@ -25,6 +24,7 @@ def create_app():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+
     # Enable CORS for your frontend
     CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
 
@@ -32,12 +32,7 @@ def create_app():
     jwt = JWTManager(app)
     migrate = Migrate (app, db)
 
-
-
-
     api = Api(app)
-
-
 
     # Register resources
     api.add_resource(PropertyListResource, "/properties")
@@ -67,11 +62,13 @@ def create_app():
     api.add_resource(PaymentStatusResource, '/payments/status/<int:payment_id>')
     api.add_resource(PaymentHistoryResource, '/payments/lease/<int:lease_id>')
     api.add_resource(LandlordPaymentDashboardResource, '/dashboard/landlord')
-    api.add_resource(NotificationResource, '/notifications')
-    api.add_resource(NotificationResource, '/notifications/<int:notification_id>', endpoint='notification_detail')
     api.add_resource(RentReminderResource, '/reminders/rent')
     api.add_resource(RepairRequestResource, '/repairs')
     api.add_resource(RepairRequestDetailResource, '/repairs/<int:request_id>')
+    api.add_resource(NotificationListResource, "/notifications")
+    api.add_resource(NotificationResource, "/notifications/<int:notification_id>")
+    api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
+    api.add_resource(TenantListResource, "/tenants")
 
     @app.route("/uploads/<filename>")
     def uploaded_file(filename):
@@ -79,12 +76,10 @@ def create_app():
 
     return app
 
-
-
 from views import *
 # Run the app
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
