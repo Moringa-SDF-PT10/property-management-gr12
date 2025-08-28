@@ -52,5 +52,18 @@ export async function createLease(leaseData) {
   });
 }
 
+// Get all leases (filtered by tenant if backend handles JWT)
+export async function getLeases() {
+  return api(`/leases`);
+}
+
+// Submit a vacate notice for a lease
+export async function submitVacate(leaseId, data) {
+  return api(`/leases/${leaseId}/vacate`, {
+    method: "PUT",
+    body: data,
+  });
+}
+
 
 export { API_BASE_URL };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api/api";
+import { getLeases } from "../api/api";
 
 export default function TenantDashboardPage() {
   const [leases, setLeases] = useState([]);
@@ -11,8 +11,7 @@ export default function TenantDashboardPage() {
       setLoading(true);
       setError("");
       try {
-        // Call backend leases endpoint
-        const data = await api("/leases"); // backend should filter by tenant if JWT/session available
+        const data = await getLeases();
         setLeases(data.leases || []);
       } catch (err) {
         console.error(err);
@@ -25,13 +24,8 @@ export default function TenantDashboardPage() {
     fetchLeases();
   }, []);
 
-  if (loading) {
-    return <p className="p-4">Loading leases...</p>;
-  }
-
-  if (error) {
-    return <p className="p-4 text-red-500">Error: {error}</p>;
-  }
+  if (loading) return <p className="p-4">Loading leases...</p>;
+  if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
   return (
     <div className="p-4">
