@@ -8,7 +8,6 @@ const NoPage = () => {
       <p className="text-center max-w-md">
         The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
       </p>
-      {/* You might want to add a link back to the homepage */}
       <a href="/" className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 transition-colors">
         Go to Homepage
       </a>

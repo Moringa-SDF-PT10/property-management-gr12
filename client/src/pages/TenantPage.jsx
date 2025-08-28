@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom"; // Assuming you might want to link to lease details
-import { Button } from "@/components/ui/button"; // Using existing UI component
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button"; 
 import { Badge } from "@/components/ui/badge";
 
 const TenantTable = ({ tenants, type }) => {

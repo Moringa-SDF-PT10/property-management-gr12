@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
-import { StatusBadge } from "./CardComponents.jsx"; // Corrected import path
+import { StatusBadge } from "./CardComponents.jsx"; 
 
 export default function PropertyCard({ property }) {
   return (

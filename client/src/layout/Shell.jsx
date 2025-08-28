@@ -1,9 +1,7 @@
-// src/components/Shell.jsx
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, LayoutDashboard, Building2, Plus, Bell } from "lucide-react";
 
-// This is the definition of your TopNavLink component
 function TopNavLink({ to, icon, children, active }) {
   return (
     <Link
@@ -45,7 +43,7 @@ export default function Shell() {
           <nav className="flex items-center gap-1">
             <TopNavLink
               to="/"
-              icon={<LayoutDashboard className="h-4 w-4" />} // Using LayoutDashboard or another available icon
+              icon={<LayoutDashboard className="h-4 w-4" />}
               active={location.pathname === "/"}
             >
               Dashboard
@@ -66,7 +64,7 @@ export default function Shell() {
             </TopNavLink>
             <TopNavLink
               to="/notifications"
-              icon={<Plus className="h-4 w-4" />} // Changed to Plus, or you can use Building2, Home, etc.
+              icon={<Plus className="h-4 w-4" />} 
               active={location.pathname === "/notifications"}
             >
               Notifications

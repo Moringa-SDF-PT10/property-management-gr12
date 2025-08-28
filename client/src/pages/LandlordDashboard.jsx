@@ -1,11 +1,9 @@
-// LandlordDashboard.jsx - Dashboard for landlords
 import React, { useState, useEffect } from 'react';
-// import TenantTable from '/pages/TenantTable'; // Renamed and moved for consistency
 import TenantTable from './TenantPage';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Using existing UI components
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Bell, ClipboardList, TrendingUp } from "lucide-react"; // Icons for new sections
-import InlineError from '../components/InlineError'; // For error display
+import { BarChart3, Bell, ClipboardList, TrendingUp } from "lucide-react";
+import InlineError from '../components/InlineError';
 
 // Landlord Dashboard Component
 const LandlordDashboard = () => {
@@ -165,7 +163,6 @@ const LandlordDashboard = () => {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Payments Chart Placeholder */}
           <Card className="rounded-xl shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -179,7 +176,7 @@ const LandlordDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Quick Actions (from original QuickActionsCard, but refined) */}
+
           <Card className="rounded-xl shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

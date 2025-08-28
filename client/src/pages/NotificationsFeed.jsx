@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Using existing UI components
-import { Badge } from "@/components/ui/badge"; // Using existing UI components
-import InlineError from "../components/InlineError"; // For error display
-import { Bell, Wallet, Wrench, CalendarDays, Info } from "lucide-react"; // Specific icons
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import InlineError from "../components/InlineError";
+import { Bell, Wallet, Wrench, CalendarDays, Info } from "lucide-react"; 
 
 const NotificationsFeed = () => {
   const [notifications, setNotifications] = useState([]);

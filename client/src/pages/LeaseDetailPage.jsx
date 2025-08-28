@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import PaymentButton from "../components/PaymentButton"; // Use the new reusable component
-import InlineError from "../components/InlineError"; // For error display
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Using existing UI components
-import { Badge } from "@/components/ui/badge"; // Using existing UI components
+import PaymentButton from "../components/PaymentButton";
+import InlineError from "../components/InlineError";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge"; 
 import { useParams } from "react-router-dom"; // To get leaseId from URL
 
 const LeaseDetailPage = () => {
