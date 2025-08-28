@@ -82,7 +82,7 @@ export default function PropertyDetailsPage() {
                   {data.pictures.map((pic, i) => (
                     <img
                       key={i}
-                      src={`${API_BASE_URL}/uploads/${pic}`}
+                      src={`${API_BASE_URL}${pic}`}
                       alt={`Property ${i + 1}`}
                       className="w-32 h-32 object-cover rounded-xl border"
                     />

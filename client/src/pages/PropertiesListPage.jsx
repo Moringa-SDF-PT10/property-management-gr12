@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Plus, Search, Building2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import InlineError from "../components/InlineError.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import EmptyState from "../components/EmptyState.jsx";
-import { api } from "../api/api.js";
+import { api, API_BASE_URL } from "../api/api.js";
 
 export default function PropertiesListPage() {
   const [all, setAll] = useState([]);
@@ -110,8 +111,55 @@ export default function PropertiesListPage() {
 }
 
 function PropertyCard({ property }) {
+  const [current, setCurrent] = useState(0);
+  const pictures = property.pictures || [];
+
+  const prevImage = () => {
+    setCurrent((prev) => (prev === 0 ? pictures.length - 1 : prev - 1));
+  };
+
+  const nextImage = () => {
+    setCurrent((prev) => (prev === pictures.length - 1 ? 0 : prev + 1));
+  };
+
   return (
-    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      {/* Image carousel */}
+      {pictures.length > 0 && (
+        <div className="relative w-full h-48">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={pictures[current]}
+              src={`${API_BASE_URL}${pictures[current].trim()}`}
+              alt={`${property.name} ${current + 1}`}
+              className="w-full h-48 object-cover"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+          </AnimatePresence>
+
+          {pictures.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 text-white p-1 rounded-full"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 text-white p-1 rounded-full"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Property info */}
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold truncate">{property.name}</CardTitle>
@@ -135,3 +183,6 @@ function PropertyCard({ property }) {
     </Card>
   );
 }
+
+
+

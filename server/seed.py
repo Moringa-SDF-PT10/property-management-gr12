@@ -1,54 +1,75 @@
-from app import create_app
-from models import Property, db
+# seed.py
 import os
+import json
+from app import create_app
+from extensions import db
+from models import Property
+from werkzeug.utils import secure_filename
+import shutil
 
-# Ensure upload folder exists
+# Initialize app
+app = create_app()
 UPLOAD_FOLDER = "uploads/properties"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Sample properties
-sample_properties = [
+# Optional: clear existing images
+for file in os.listdir(UPLOAD_FOLDER):
+    file_path = os.path.join(UPLOAD_FOLDER, file)
+    if os.path.isfile(file_path):
+        os.unlink(file_path)
+
+# Sample properties data
+properties_data = [
     {
-        "name": "Apartment A",
-        "location": "Nairobi, Kilimani",
-        "rent": 35000,
+        "name": "Lakeview Apartments",
+        "location": "Nairobi",
+        "rent": 25000,
         "status": "vacant",
-        "pictures": "apartment_a.jpg,apartment_a2.jpg",
+        "images": ["sample1.jpg", "sample2.jpg"]
     },
     {
-        "name": "Villa B",
-        "location": "Mombasa, Nyali",
-        "rent": 70000,
+        "name": "Sunset Villas",
+        "location": "Mombasa",
+        "rent": 40000,
         "status": "occupied",
-        "pictures": "villa_b.jpg",
+        "images": ["sample3.jpg"]
     },
     {
-        "name": "Studio C",
-        "location": "Nairobi, Westlands",
-        "rent": 20000,
+        "name": "Garden Residences",
+        "location": "Kisumu",
+        "rent": 30000,
         "status": "vacant",
-        "pictures": "",
+        "images": []
     },
 ]
 
-# Create the app
-app = create_app()
+# Function to "upload" sample images (just copy to uploads folder)
+def copy_images(image_list):
+    uploaded = []
+    for img in image_list:
+        src_path = os.path.join("sample_images", img)  # you can create a folder called sample_images
+        if os.path.exists(src_path):
+            filename = secure_filename(img)
+            dest_path = os.path.join(UPLOAD_FOLDER, filename)
+            shutil.copy(src_path, dest_path)
+            uploaded.append(f"/uploads/{filename}")
+    return uploaded
 
-# Reset DB and seed data
 with app.app_context():
-    print("Dropping and creating tables...")
+    # Clear existing data
     db.drop_all()
     db.create_all()
 
-    for prop_data in sample_properties:
+    for pdata in properties_data:
+        pics = copy_images(pdata["images"])
         prop = Property(
-            name=prop_data["name"],
-            location=prop_data["location"],
-            rent=prop_data["rent"],
-            status=prop_data["status"],
-            pictures=prop_data["pictures"],
+            name=pdata["name"],
+            location=pdata["location"],
+            rent=pdata["rent"],
+            status=pdata["status"],
+            pictures=json.dumps(pics)
         )
         db.session.add(prop)
-
+    
     db.session.commit()
-    print(f"Seeded {len(sample_properties)} properties successfully!")
+    print("Database seeded with sample properties!")

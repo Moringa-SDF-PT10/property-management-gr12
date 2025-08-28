@@ -1,4 +1,4 @@
-from app import db
+from extensions import db
 import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum
@@ -9,7 +9,7 @@ import hashlib
 import uuid
 from sqlalchemy_serializer import SerializerMixin
 
-db = SQLAlchemy()
+
 bcrypt = Bcrypt()
 
 ROLE_ADMIN = "admin"
@@ -100,7 +100,7 @@ class User(db.Model, SerializerMixin):
     def validate_role_static(role):
         return role in VALID_ROLES
       
-class Property(db.Model):
+class Property(db.Model, SerializerMixin):
    __tablename__ = "properties"
    
    id = db.Column(db.Integer, primary_key=True)
@@ -108,17 +108,32 @@ class Property(db.Model):
    location = db.Column(db.String(150), nullable=False)
    rent = db.Column(db.Float, nullable=False)
    status = db.Column(db.String(20), nullable=False, default="vacant")
-   pictures = db.Column(db.Text, nullable=True)  
+   pictures = db.Column(db.Text, nullable=True)
+    
+   leases = db.relationship("Lease", back_populates="property", cascade="all, delete-orphan") 
 
-   def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "location": self.location,
-            "rent": self.rent,
-            "status": self.status,
-            "pictures": json.loads(self.pictures) if self.pictures else [],
-        }
+@validates("rent")
+def validate_rent(self, key, rent):
+    if rent <= 0:
+        raise ValueError("Rent must be a positive number")
+    return rent
+
+@validates("status")
+def validate_status(self, key, status):
+    if status not in ["vacant", "occupied"]:
+        raise ValueError("Status must be 'vacant' or 'occupied'")
+    return status
+
+@classmethod
+def from_dict(cls, data):
+        if "rent" in data:
+            rent = data["rent"]
+            if rent <= 0:
+                raise ValueError("Rent must be positive")
+        if "status" in data and data["status"] not in ["vacant", "occupied"]:
+            raise ValueError("Invalid status")
+        return cls(**data)
+
      
     
 

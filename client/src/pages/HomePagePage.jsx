@@ -14,7 +14,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-3xl md:text-4xl font-extrabold tracking-tight"
           >
-            Welcome back, Landlord
+            Welcome back, {User.name}
           </motion.h1>
           
           <div className="mt-6 flex flex-wrap gap-3">

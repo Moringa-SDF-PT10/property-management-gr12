@@ -893,6 +893,8 @@ class LeaseVacateApprovalResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
+        
+        
 
 
 

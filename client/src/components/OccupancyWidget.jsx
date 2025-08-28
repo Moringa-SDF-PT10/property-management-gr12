@@ -34,6 +34,9 @@ export default function OccupancyWidget({ className = "" }) {
     [summary]
   );
 
+   // 🎨 Define colors for slices
+  const COLORS = ["#4CAF50", "#F44336"];
+
   return (
     <Card className={`rounded-2xl shadow-sm ${className}`}>
       <CardHeader>
@@ -62,7 +65,7 @@ export default function OccupancyWidget({ className = "" }) {
                     label
                   >
                     {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={undefined} />
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
