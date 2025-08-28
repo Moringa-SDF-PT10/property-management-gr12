@@ -2,7 +2,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api
 from models import db
-from routes import PropertyListResource, PropertyResource
+from routes import PropertyListResource, PropertyResource, OccupancySummaryResource
 import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -14,7 +14,7 @@ from datetime import timedelta
 def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-key")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///rentals.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///property.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = os.getenv("SQLALCHEMY_TRACK_MODIFICATIONS", False)
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-jwt-key")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
@@ -69,8 +69,9 @@ def create_app():
     api.add_resource(NotificationResource, "/notifications/<int:notification_id>")
     api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
     api.add_resource(TenantListResource, "/tenants")
+    api.add_resource(OccupancySummaryResource, "/properties/summary")
 
-    @app.route("/uploads/<filename>")
+    @app.route("/uploads/properties/<filename>")
     def uploaded_file(filename):
         return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 

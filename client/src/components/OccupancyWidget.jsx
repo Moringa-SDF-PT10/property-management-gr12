@@ -12,17 +12,21 @@ export default function OccupancyWidget({ className = "" }) {
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
         setLoading(true);
         const data = await api("/properties/summary");
+        console.log("Occupancy summary from backend:", data); // Debug
         if (mounted) setSummary(data || { occupied: 0, vacant: 0 });
       } catch (e) {
-        setError(e.message);
+        console.error("API error:", e);
+        if (mounted) setError(e.message);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
+
     return () => (mounted = false);
   }, []);
 
@@ -34,6 +38,8 @@ export default function OccupancyWidget({ className = "" }) {
     [summary]
   );
 
+  const COLORS = ["#4CAF50", "#F44336"]; // Occupied = green, Vacant = red
+
   return (
     <Card className={`rounded-2xl shadow-sm ${className}`}>
       <CardHeader>
@@ -41,6 +47,7 @@ export default function OccupancyWidget({ className = "" }) {
           <BarChart3 className="h-5 w-5 text-slate-600" /> Occupancy Overview
         </CardTitle>
       </CardHeader>
+
       <CardContent>
         {loading ? (
           <div className="h-48 grid place-items-center animate-pulse text-slate-400">
@@ -50,6 +57,7 @@ export default function OccupancyWidget({ className = "" }) {
           <div className="text-red-600 text-sm">{error}</div>
         ) : (
           <div className="grid md:grid-cols-2 gap-6 items-center">
+            {/* Pie Chart */}
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -62,7 +70,7 @@ export default function OccupancyWidget({ className = "" }) {
                     label
                   >
                     {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={undefined} />
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -70,6 +78,8 @@ export default function OccupancyWidget({ className = "" }) {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+
+            {/* Stats */}
             <div className="space-y-3">
               <Stat label="Occupied" value={summary.occupied} />
               <Stat label="Vacant" value={summary.vacant} />

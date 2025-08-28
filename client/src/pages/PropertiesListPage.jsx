@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Plus, Search, Building2 } from "lucide-react";
-
+import { API_BASE_URL } from "../api/api.js";
 import InlineError from "../components/InlineError.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -50,7 +50,7 @@ export default function PropertiesListPage() {
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Properties</h1>
-          <p className="text-slate-500 text-sm">API: /properties</p>
+          <p className="text-slate-500 text-sm"></p>
         </div>
         <Link to="/properties/new">
           <Button className="rounded-xl"><Plus className="h-4 w-4 mr-2" /> New Property</Button>
@@ -112,24 +112,40 @@ export default function PropertiesListPage() {
 function PropertyCard({ property }) {
   return (
     <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+      {/* ✅ Show image if available */}
+      {property.image && (
+        <img    
+         src={`${API_BASE_URL}/uploads/properties/${property.image}`}
+          alt={property.name}
+          className="w-full h-40 object-cover rounded-t-2xl"
+        />
+      )}
+
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold truncate">{property.name}</CardTitle>
           <StatusBadge status={property.status} />
         </div>
       </CardHeader>
+
       <CardContent className="text-sm text-slate-600 space-y-2">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-slate-400" />
-          <span className="truncate" title={property.location}>{property.location}</span>
+          <span className="truncate" title={property.location}>
+            {property.location}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-medium text-slate-800">Rent:</span>
           <span>KES {Number(property.rent).toLocaleString()}</span>
         </div>
         <div className="pt-2 flex gap-2">
-          <Link to={`/properties/${property.id}`} className="text-sm text-slate-900 hover:underline">View details →</Link>
-          <Link to={`/properties/${property.id}/edit`} className="text-sm text-blue-600 hover:underline">Edit</Link>
+          <Link to={`/properties/${property.id}`} className="text-sm text-slate-900 hover:underline">
+            View details →
+          </Link>
+          <Link to={`/properties/${property.id}/edit`} className="text-sm text-blue-600 hover:underline">
+            Edit
+          </Link>
         </div>
       </CardContent>
     </Card>

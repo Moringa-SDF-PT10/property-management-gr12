@@ -8,7 +8,6 @@ flask = "*"
 flask-cors = "*"
 sqlalchemy-serializer = "*"
 flask-bcrypt = "*"
-flask-restful = "*"
 faker = "*"
 flask-jwt-extended = "*"
 python-dotenv = "*"
@@ -18,6 +17,7 @@ python-dateutil = "*"
 twilio = "*"
 celery = "*"
 requests = "*"
+flask-restful = "*"
 
 [dev-packages]
 
