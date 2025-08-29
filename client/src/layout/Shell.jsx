@@ -1,7 +1,9 @@
-import { Link, useLocation } from "react-router-dom";
+// src/components/Shell.jsx
+import { Link, useLocation, Outlet } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Home, LayoutDashboard, Building2, Plus } from "lucide-react";
+import { Home, LayoutDashboard, Building2, Plus, Bell } from "lucide-react";
 
+// This is the definition of your TopNavLink component
 function TopNavLink({ to, icon, children, active }) {
   return (
     <Link
@@ -18,8 +20,10 @@ function TopNavLink({ to, icon, children, active }) {
   );
 }
 
-export default function Shell({ children }) {
+
+export default function Shell() {
   const location = useLocation();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-800">
       <motion.header
@@ -40,9 +44,9 @@ export default function Shell({ children }) {
 
           <nav className="flex items-center gap-1">
             <TopNavLink
-              to="/dashboard"
-              icon={<LayoutDashboard className="h-4 w-4" />}
-              active={location.pathname.startsWith("/dashboard")}
+              to="/"
+              icon={<LayoutDashboard className="h-4 w-4" />} // Using LayoutDashboard or another available icon
+              active={location.pathname === "/"}
             >
               Dashboard
             </TopNavLink>
@@ -60,16 +64,24 @@ export default function Shell({ children }) {
             >
               Add
             </TopNavLink>
+            <TopNavLink
+              to="/notifications"
+              icon={<Plus className="h-4 w-4" />} // Changed to Plus, or you can use Building2, Home, etc.
+              active={location.pathname === "/notifications"}
+            >
+              Notifications
+            </TopNavLink>
           </nav>
         </div>
       </motion.header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        <Outlet />
+      </main>
 
       <footer className="mt-16 border-t border-slate-200 bg-white/60">
         <div className="max-w-6xl mx-auto px-4 py-6 text-sm text-slate-500 flex items-center justify-between">
           <span>© {new Date().getFullYear()} Rent</span>
-        
         </div>
       </footer>
     </div>

@@ -15,7 +15,7 @@ export default function OccupancyWidget({ className = "" }) {
     (async () => {
       try {
         setLoading(true);
-        const data = await api("/properties/summary");
+        const data = await api("/properties");
         if (mounted) setSummary(data || { occupied: 0, vacant: 0 });
       } catch (e) {
         setError(e.message);

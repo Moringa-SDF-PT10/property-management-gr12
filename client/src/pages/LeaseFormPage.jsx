@@ -1,102 +1,109 @@
-
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
-import { createLease } from "../api/api";  
-
-
-const LeaseSchema = Yup.object().shape({
-  property_id: Yup.number().required("Property is required"),
-  start_date: Yup.date().required("Start date is required"),
-  end_date: Yup.date().required("End date is required"),
-  rent_amount: Yup.number().min(1000, "Rent too low").required("Rent is required"),
-});
+import { useState } from "react";
+import { createLease } from "../api/api";
 
 export default function LeaseFormPage() {
+  const [formData, setFormData] = useState({
+    property_id: "",
+    start_date: "",
+    end_date: "",
+    rent_amount: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await createLease(formData);
+      setSuccess("Lease created successfully!");
+      setFormData({
+        property_id: "",
+        start_date: "",
+        end_date: "",
+        rent_amount: "",
+      });
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to create lease");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-lg mx-auto p-6 bg-white shadow rounded">
-      <h2 className="text-xl font-bold mb-4">Lease Booking</h2>
+      <h2 className="text-xl font-bold mb-4">Book a Lease</h2>
 
-      <Formik
-        initialValues={{
-          property_id: "",
-          start_date: "",
-          end_date: "",
-          rent_amount: "",
-        }}
-        validationSchema={LeaseSchema}
-        onSubmit={async (values, { setSubmitting, resetForm }) => {
-          try {
-            // Call backend using helper
-            const userId = 1; // temp hardcoded, later from auth by chege
-            const res = await createLease(values);
+      {error && <p className="text-red-500 mb-2">{error}</p>}
+      {success && <p className="text-green-500 mb-2">{success}</p>}
 
-            alert("Lease created successfully!");
-            resetForm();
-            console.log("Lease response:", res);
-          } catch (err) {
-            alert("Error: " + err.message);
-          } finally {
-            setSubmitting(false);
-          }
-        }}
-      >
-        {({ isSubmitting }) => (
-          <Form className="space-y-4">
-            {/* Property ID */}
-            <div>
-              <label className="block">Property ID</label>
-              <Field
-                name="property_id"
-                type="number"
-                className="w-full border rounded px-3 py-2"
-              />
-              <ErrorMessage name="property_id" component="div" className="text-red-500 text-sm" />
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label>Property ID</label>
+          <input
+            name="property_id"
+            type="number"
+            value={formData.property_id}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
 
-            {/* Start Date */}
-            <div>
-              <label className="block">Start Date</label>
-              <Field
-                name="start_date"
-                type="date"
-                className="w-full border rounded px-3 py-2"
-              />
-              <ErrorMessage name="start_date" component="div" className="text-red-500 text-sm" />
-            </div>
+        <div>
+          <label>Start Date</label>
+          <input
+            name="start_date"
+            type="date"
+            value={formData.start_date}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
 
-            {/* End Date */}
-            <div>
-              <label className="block">End Date</label>
-              <Field
-                name="end_date"
-                type="date"
-                className="w-full border rounded px-3 py-2"
-              />
-              <ErrorMessage name="end_date" component="div" className="text-red-500 text-sm" />
-            </div>
+        <div>
+          <label>End Date</label>
+          <input
+            name="end_date"
+            type="date"
+            value={formData.end_date}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
 
-            {/* Rent Amount */}
-            <div>
-              <label className="block">Rent Amount</label>
-              <Field
-                name="rent_amount"
-                type="number"
-                className="w-full border rounded px-3 py-2"
-              />
-              <ErrorMessage name="rent_amount" component="div" className="text-red-500 text-sm" />
-            </div>
+        <div>
+          <label>Rent Amount</label>
+          <input
+            name="rent_amount"
+            type="number"
+            value={formData.rent_amount}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-            >
-              {isSubmitting ? "Submitting..." : "Create Lease"}
-            </button>
-          </Form>
-        )}
-      </Formik>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "Submitting..." : "Create Lease"}
+        </button>
+      </form>
     </div>
   );
 }
