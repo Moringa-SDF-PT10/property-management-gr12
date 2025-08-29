@@ -7,8 +7,9 @@ from datetime import date, datetime, timezone
 import hashlib
 import uuid
 from sqlalchemy_serializer import SerializerMixin
+from extensions import db
 
-db = SQLAlchemy()
+
 bcrypt = Bcrypt()
 
 ROLE_ADMIN = "admin"

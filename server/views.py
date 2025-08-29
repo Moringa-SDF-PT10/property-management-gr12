@@ -920,6 +920,8 @@ class LeaseVacateApprovalResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
+        
+        
 
 class NotificationListResource(Resource):
     @jwt_required()

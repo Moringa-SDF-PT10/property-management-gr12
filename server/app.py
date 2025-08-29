@@ -1,7 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api
-from models import db
+from models import db, Property
 from routes import PropertyListResource, PropertyResource, OccupancySummaryResource
 import os
 from flask_sqlalchemy import SQLAlchemy
@@ -25,7 +25,7 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
-    # Enable CORS for your frontend
+    # Enable CORS
     CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
 
     db.init_app(app)
@@ -33,8 +33,6 @@ def create_app():
     migrate = Migrate (app, db)
 
     api = Api(app)
-
-    # Register resources
     api.add_resource(PropertyListResource, "/properties")
     api.add_resource(PropertyResource, "/properties/<int:id>")
     api.add_resource(RegisterResource, "/auth/register")
@@ -74,6 +72,18 @@ def create_app():
     @app.route("/uploads/properties/<filename>")
     def uploaded_file(filename):
         return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+    # Summary route
+    @app.route("/properties/summary", methods=["GET"])
+    def properties_summary():
+        total_properties = Property.query.count()
+        occupied_properties = Property.query.filter_by(status="occupied").count()
+        vacant_properties = Property.query.filter_by(status="vacant").count()
+        return {
+            "total": total_properties,
+            "occupied": occupied_properties,
+            "vacant": vacant_properties,
+        }, 200
 
     return app
 

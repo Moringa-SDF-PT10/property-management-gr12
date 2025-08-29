@@ -199,3 +199,6 @@ function PropertyCard({ property }) {
     </Card>
   );
 }
+
+
+
