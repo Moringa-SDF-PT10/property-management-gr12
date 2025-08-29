@@ -44,13 +44,14 @@ const LoginForm = () => {
 
       if (response.ok) {
         // Store user data and token
-        localStorage.setItem('accessToken', data.access_token);
-        localStorage.setItem('refreshToken', data.refresh_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
+        const { access_token, refresh_token, email, role } = data.data;
+        localStorage.setItem('accessToken', access_token);
+        localStorage.setItem('refreshToken', refresh_token);
+        localStorage.setItem('user', JSON.stringify({ email, role}));
+
         // Redirect based on role
-        const userRole = data.user.role;
-        switch (userRole) {
+
+        switch (role) {
           case 'admin':
             navigate('/admin/dashboard');
             break;
@@ -200,3 +201,4 @@ const LoginForm = () => {
 };
 
 export default LoginForm;
+

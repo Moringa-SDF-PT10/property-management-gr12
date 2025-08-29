@@ -26,7 +26,7 @@ def create_app():
 
 
     # Enable CORS for your frontend
-    CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
+    CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173"], supports_credentials=True)
 
     db.init_app(app)
     jwt = JWTManager(app)
@@ -46,9 +46,9 @@ def create_app():
     api.add_resource(UsersResource, "/auth/users")
     api.add_resource(HealthCheckResource, "/health")
     api.add_resource(UserManagementResource, "/auth/users/<string:user_id>")
-    api.add_resource(LandlordDashboardResource, "/dashboard/landlord")
-    api.add_resource(TenantDashboardResource, "/dashboard/tenant")
-    api.add_resource(AdminDashboardResource, "/dashboard/admin")
+    api.add_resource(LandlordDashboardResource, "/landlord/dashboard")
+    api.add_resource(TenantDashboardResource, "/tenant/dashboard")
+    api.add_resource(AdminDashboardResource, "/admin/dashboard")
     api.add_resource(DashboardStatsResource, "/dashboard/stats")
     api.add_resource(UserProfileDashboardResource, "/dashboard/profile")
     api.add_resource(LeaseListResource, "/leases")
@@ -61,7 +61,7 @@ def create_app():
     api.add_resource(MpesaCallbackResource, '/payments/callback')
     api.add_resource(PaymentStatusResource, '/payments/status/<int:payment_id>')
     api.add_resource(PaymentHistoryResource, '/payments/lease/<int:lease_id>')
-    api.add_resource(LandlordPaymentDashboardResource, '/dashboard/landlord')
+    api.add_resource(LandlordPaymentDashboardResource, '/landlord/dashboard/payment')
     api.add_resource(RentReminderResource, '/reminders/rent')
     api.add_resource(RepairRequestResource, '/repairs')
     api.add_resource(RepairRequestDetailResource, '/repairs/<int:request_id>')

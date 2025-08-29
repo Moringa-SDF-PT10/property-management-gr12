@@ -76,10 +76,10 @@ const SignupForm = () => {
       const data = await response.json();
 
       if (response.ok) {
-        navigate('/auth/login', { 
-          state: { 
+        navigate('/auth/login', {
+          state: {
             message: 'Registration successful! Please log in.',
-            email: values.email 
+            email: values.email
           }
         });
       } else {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Shield,
   Users,
@@ -46,7 +47,7 @@ const AdminDashboard = () => {
       // And the 'period' parameter is not currently used by the backend.
       const response = await api(`/admin/dashboard`);
       const data = response.dashboard; // Backend returns { message, dashboard: {...} }
-      
+
       setSystemStats({
         totalUsers: data.user_statistics.total_users || 0,
         totalLandlords: data.user_statistics.landlords || 0,
@@ -164,7 +165,9 @@ const AdminDashboard = () => {
         {/* Tab Navigation */}
         <div className="mb-8">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav
+
+              className="-mb-px flex space-x-8">
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'users', label: 'Users', icon: Users },
@@ -187,6 +190,9 @@ const AdminDashboard = () => {
                   </button>
                 );
               })}
+              <Link to="/properties" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              Add Property
+              </Link>
             </nav>
           </div>
         </div>
