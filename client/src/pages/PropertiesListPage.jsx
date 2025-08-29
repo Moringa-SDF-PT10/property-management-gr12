@@ -12,6 +12,7 @@ import InlineError from "../components/InlineError.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { api } from "../api/api.js";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function PropertiesListPage() {
   const [all, setAll] = useState([]);
@@ -110,24 +111,65 @@ export default function PropertiesListPage() {
 }
 
 function PropertyCard({ property }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   return (
-    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-      {/* ✅ Show image if available */}
-      {property.image && (
-        <img    
-         src={`${API_BASE_URL}/uploads/properties/${property.image}`}
-          alt={property.name}
-          className="w-full h-40 object-cover rounded-t-2xl"
-        />
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      {property.pictures && property.pictures.length > 0 ? (
+        <div className="relative w-full h-40">
+          
+          <img
+            src={`${API_BASE_URL}${property.pictures[currentIndex]}`}
+            alt={`${property.name} ${currentIndex + 1}`}
+            className="w-full h-40 object-cover rounded-t-2xl"
+          />
+
+       
+          {property.pictures.length > 1 && (
+            <button
+              onClick={() =>
+                setCurrentIndex(
+                  (prev) =>
+                    (prev - 1 + property.pictures.length) %
+                    property.pictures.length
+                )
+              }
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full hover:bg-black/60"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Next Button */}
+          {property.pictures.length > 1 && (
+            <button
+              onClick={() =>
+                setCurrentIndex(
+                  (prev) => (prev + 1) % property.pictures.length
+                )
+              }
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full hover:bg-black/60"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="w-full h-40 bg-slate-100 flex items-center justify-center rounded-t-2xl text-slate-400 text-sm">
+          No Images Available
+        </div>
       )}
 
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold truncate">{property.name}</CardTitle>
+          <CardTitle className="text-lg font-semibold truncate">
+            {property.name}
+          </CardTitle>
           <StatusBadge status={property.status} />
         </div>
       </CardHeader>
 
+      
       <CardContent className="text-sm text-slate-600 space-y-2">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-slate-400" />
@@ -140,10 +182,16 @@ function PropertyCard({ property }) {
           <span>KES {Number(property.rent).toLocaleString()}</span>
         </div>
         <div className="pt-2 flex gap-2">
-          <Link to={`/properties/${property.id}`} className="text-sm text-slate-900 hover:underline">
+          <Link
+            to={`/properties/${property.id}`}
+            className="text-sm text-slate-900 hover:underline"
+          >
             View details →
           </Link>
-          <Link to={`/properties/${property.id}/edit`} className="text-sm text-blue-600 hover:underline">
+          <Link
+            to={`/properties/${property.id}/edit`}
+            className="text-sm text-blue-600 hover:underline"
+          >
             Edit
           </Link>
         </div>

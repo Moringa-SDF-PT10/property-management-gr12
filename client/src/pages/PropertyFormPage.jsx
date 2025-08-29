@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { ArrowLeft, Plus, Edit } from "lucide-react";
 
 import InlineError from "../components/InlineError.jsx";
-import { API_BASE_URL } from "../api/api.js"; // make sure this is exported
+import { API_BASE_URL } from "../api/api.js";
 
 function FieldError({ children }) {
   return <div className="mt-1 text-xs text-red-600">{children}</div>;
@@ -19,6 +19,7 @@ export default function PropertyFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+
   const [initial, setInitial] = useState({
     name: "",
     location: "",
@@ -28,6 +29,8 @@ export default function PropertyFormPage() {
   });
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState("");
+  const [deleteImages, setDeleteImages] = useState([]);
+  const [deletingImages, setDeletingImages] = useState([]);
 
   // Fetch property if editing
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function PropertyFormPage() {
       location: Yup.string().min(2).max(150).required("Location is required"),
       rent: Yup.number().typeError("Rent must be a number").min(0, "Rent cannot be negative").required("Rent is required"),
       status: Yup.string().oneOf(["occupied", "vacant"]).required(),
-      pictures: Yup.mixed(), // optional
+      pictures: Yup.mixed(),
     }),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
@@ -76,9 +79,10 @@ export default function PropertyFormPage() {
         formData.append("rent", values.rent);
         formData.append("status", values.status);
 
-        // Append files
+        deleteImages.forEach(img => formData.append("delete_images[]", img));
+
         if (values.pictures && values.pictures.length > 0) {
-          values.pictures.forEach((file) => formData.append("pictures", file));
+          values.pictures.forEach(file => formData.append("pictures", file));
         }
 
         const url = isEdit ? `${API_BASE_URL}/properties/${id}` : `${API_BASE_URL}/properties`;
@@ -121,19 +125,19 @@ export default function PropertyFormPage() {
           <div>
             <Label>Name</Label>
             <Input {...formik.getFieldProps("name")} placeholder="Apartment A" className="rounded-xl" />
-            {formik.touched.name && formik.errors.name ? <FieldError>{formik.errors.name}</FieldError> : null}
+            {formik.touched.name && formik.errors.name && <FieldError>{formik.errors.name}</FieldError>}
           </div>
 
           <div>
             <Label>Location</Label>
             <Input {...formik.getFieldProps("location")} placeholder="Nairobi, Kilimani" className="rounded-xl" />
-            {formik.touched.location && formik.errors.location ? <FieldError>{formik.errors.location}</FieldError> : null}
+            {formik.touched.location && formik.errors.location && <FieldError>{formik.errors.location}</FieldError>}
           </div>
 
           <div>
             <Label>Monthly Rent (KES)</Label>
             <Input {...formik.getFieldProps("rent")} placeholder="35000" className="rounded-xl" />
-            {formik.touched.rent && formik.errors.rent ? <FieldError>{formik.errors.rent}</FieldError> : null}
+            {formik.touched.rent && formik.errors.rent && <FieldError>{formik.errors.rent}</FieldError>}
           </div>
 
           <div>
@@ -141,18 +145,53 @@ export default function PropertyFormPage() {
             <Input
               type="file"
               multiple
-              onChange={(e) => {
+              onChange={e => {
                 const files = Array.from(e.currentTarget.files);
                 formik.setFieldValue("pictures", files);
               }}
               className="rounded-xl"
             />
-            {formik.touched.pictures && formik.errors.pictures ? <FieldError>{formik.errors.pictures}</FieldError> : null}
+            {formik.touched.pictures && formik.errors.pictures && <FieldError>{formik.errors.pictures}</FieldError>}
           </div>
+
+         <div className="flex gap-2">
+  {initial.pictures && initial.pictures.map((pic, i) => {
+    const isDeleting = deletingImages.includes(pic);
+    return (
+      <div
+        key={i}
+        className={`relative transition-opacity duration-300 ${isDeleting ? "opacity-0" : "opacity-100"}`}
+      >
+        <img
+          src={`${API_BASE_URL}${pic}`}
+          alt={`Property ${i + 1}`}
+          className="w-32 h-32 object-cover rounded-xl border"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteImages(prev => [...prev, pic]);
+            setDeletingImages(prev => [...prev, pic]);
+            setTimeout(() => {
+              setInitial(prev => ({
+                ...prev,
+                pictures: prev.pictures.filter(p => p !== pic)
+              }));
+              setDeletingImages(prev => prev.filter(p => p !== pic));
+            }, 300); // match the CSS transition duration
+          }}
+          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+        >
+          ×
+        </button>
+      </div>
+    );
+  })}
+</div>
 
           <div>
             <Label>Status</Label>
-            <Select value={formik.values.status} onValueChange={(val) => formik.setFieldValue("status", val)}>
+            <Select value={formik.values.status} onValueChange={val => formik.setFieldValue("status", val)}>
               <SelectTrigger className="rounded-xl">
                 <SelectValue />
               </SelectTrigger>
@@ -161,7 +200,7 @@ export default function PropertyFormPage() {
                 <SelectItem value="occupied">Occupied</SelectItem>
               </SelectContent>
             </Select>
-            {formik.touched.status && formik.errors.status ? <FieldError>{formik.errors.status}</FieldError> : null}
+            {formik.touched.status && formik.errors.status && <FieldError>{formik.errors.status}</FieldError>}
           </div>
 
           <div className="pt-2 flex items-center gap-3">
