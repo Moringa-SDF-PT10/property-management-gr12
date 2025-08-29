@@ -122,6 +122,47 @@ class Property(db.Model, SerializerMixin):
     pictures = db.Column(db.Text, nullable=True)
 
     leases = db.relationship("Lease", back_populates="property", cascade="all, delete-orphan")
+    
+      # ✅ Validation rules
+    @validates("name")
+    def validate_name(self, key, value):
+        if not value or len(value.strip()) < 3:
+            raise ValueError("Property name must be at least 3 characters long")
+        return value.strip()
+
+    @validates("location")
+    def validate_location(self, key, value):
+        if not value or len(value.strip()) < 3:
+            raise ValueError("Property location must be at least 3 characters long")
+        return value.strip()
+
+    @validates("rent")
+    def validate_rent(self, key, value):
+        if value is None or value <= 0:
+            raise ValueError("Rent must be greater than 0")
+        return round(float(value), 2)
+
+    @validates("status")
+    def validate_status(self, key, value):
+        allowed_statuses = ["vacant", "occupied", "maintenance"]
+        if value not in allowed_statuses:
+            raise ValueError(f"Invalid property status: {value}. Must be one of {allowed_statuses}")
+        return value
+
+    @validates("pictures")
+    def validate_pictures(self, key, value):
+        if value:
+            try:
+                pics = json.loads(value)
+                if not isinstance(pics, list):
+                    raise ValueError("Pictures must be stored as a JSON array")
+                # Ensure all items are strings (URLs or file paths)
+                for p in pics:
+                    if not isinstance(p, str):
+                        raise ValueError("Each picture must be a string (URL or path)")
+            except json.JSONDecodeError:
+                raise ValueError("Pictures must be valid JSON")
+        return value
 
     def to_dict(self):
         return {
