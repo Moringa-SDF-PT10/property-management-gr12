@@ -28,7 +28,7 @@ const LoginForm = () => {
     setApiError('');
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/auth/login', {
+      const response = await fetch('http://localhost:5000/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,7 +44,8 @@ const LoginForm = () => {
 
       if (response.ok) {
         // Store user data and token
-        localStorage.setItem('token', data.token);
+        localStorage.setItem('accessToken', data.access_token);
+        localStorage.setItem('refreshToken', data.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         // Redirect based on role
