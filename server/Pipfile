@@ -18,6 +18,7 @@ python-dateutil = "*"
 requests = "*"
 twilio = "*"
 celery = "*"
+gunicorn = "*"
 
 [dev-packages]
 
