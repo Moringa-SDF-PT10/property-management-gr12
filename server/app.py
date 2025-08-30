@@ -26,13 +26,25 @@ def create_app():
 
 
     # Enable CORS for your frontend
-    CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
+    CORS(app, origins="http://localhost:5173/", supports_credentials=True)
 
     db.init_app(app)
     jwt = JWTManager(app)
     migrate = Migrate (app, db)
 
     api = Api(app)
+
+    from views import (
+        RegisterResource, LoginResource, LogoutResource, RefreshResource, ProfileResource,
+        DashboardResource, UsersResource, HealthCheckResource, UserManagementResource,
+        LandlordDashboardResource, TenantDashboardResource, AdminDashboardResource,
+        DashboardStatsResource, UserProfileDashboardResource, LeaseListResource, LeaseResource,
+        BillListResource, BillResource, LeaseVacateResource, LeaseVacateApprovalResource,
+        PaymentInitResource, MpesaCallbackResource, PaymentStatusResource, PaymentHistoryResource,
+        LandlordPaymentDashboardResource, RentReminderResource, RepairRequestResource,
+        RepairRequestDetailResource, NotificationListResource, NotificationResource,
+        BroadcastNotificationResource, TenantListResource
+    )
 
     # Register resources
     api.add_resource(PropertyListResource, "/properties")
@@ -61,7 +73,7 @@ def create_app():
     api.add_resource(MpesaCallbackResource, '/payments/callback')
     api.add_resource(PaymentStatusResource, '/payments/status/<int:payment_id>')
     api.add_resource(PaymentHistoryResource, '/payments/lease/<int:lease_id>')
-    api.add_resource(LandlordPaymentDashboardResource, '/dashboard/landlord')
+    api.add_resource(LandlordPaymentDashboardResource, '/dashboard/landlord/payment')
     api.add_resource(RentReminderResource, '/reminders/rent')
     api.add_resource(RepairRequestResource, '/repairs')
     api.add_resource(RepairRequestDetailResource, '/repairs/<int:request_id>')
@@ -76,10 +88,10 @@ def create_app():
 
     return app
 
-from views import *
+#from views import *
 # Run the app
 if __name__ == "__main__":
-    app = create_app()
-    with app.app_context():
+    app_instance = create_app()
+    with app_instance.app_context():
         db.create_all()
-    app.run(debug=True, port=5000)
+    app_instance.run(debug=True, port=5000)
