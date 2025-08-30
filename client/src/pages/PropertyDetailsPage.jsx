@@ -49,6 +49,10 @@ export default function PropertyDetailsPage() {
     }
   };
 
+  const onBookLease = () => {
+  navigate(`/properties/${id}/lease`);
+};
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -98,6 +102,9 @@ export default function PropertyDetailsPage() {
                 </Link>
                 <Button variant="destructive" className="rounded-xl" onClick={onDelete}>
                   <Trash2 className="h-4 w-4 mr-2" /> Delete
+                </Button>
+                 <Button className="rounded-xl bg-green-600 hover:bg-green-700" onClick={onBookLease}>
+                  Book Lease
                 </Button>
               </div>
             </CardContent>
