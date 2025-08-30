@@ -276,7 +276,7 @@ class Notification(db.Model, SerializerMixin):
 
     def mark_as_read(self):
         self.is_read = True
-        self.is_read_at = datetime.now(timezone.utc)
+        self.read_at = datetime.now(timezone.utc)
 
     def to_dict(self):
         return {
