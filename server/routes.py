@@ -4,7 +4,7 @@ from flask import request, send_from_directory
 from werkzeug.utils import secure_filename
 import os, json, uuid
 from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
-from models import db, User, Property, Lease, Bill, Notification
+from server.models  import db, User, Property, Lease, Bill, Notification
 from functools import wraps
 import re
 from datetime import datetime, timedelta
