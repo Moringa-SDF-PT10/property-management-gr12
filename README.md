@@ -144,7 +144,7 @@ This property management system streamlines rental operations for landlords, ten
 
 ### Backend
 - **Framework**: Flask 3.x
-- **Database**: SQLAlchemy with SQLite (development) / PostgreSQL (production)
+- **Database**: SQLAlchemy with SQLite (development) 
 - **Authentication**: Flask-JWT-Extended
 - **API**: Flask-RESTful
 - **File Handling**: Werkzeug secure file upload
@@ -164,7 +164,7 @@ This property management system streamlines rental operations for landlords, ten
 - **State Management**: React Hooks (useState, useEffect)
 
 ### Development Tools
-- **Package Management**: Pipenv (Python), npm/yarn (Node.js)
+- **Package Management**: Pipenv (Python), npm (Node.js)
 - **Code Quality**: ESLint, Prettier
 - **Version Control**: Git
 - **Environment**: Docker support
@@ -213,7 +213,7 @@ The system uses a relational database with the following key entities:
 
 2. **Create virtual environment**
    ```bash
-   cd backend
+   cd server
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
@@ -245,7 +245,7 @@ The system uses a relational database with the following key entities:
 
 1. **Navigate to frontend directory**
    ```bash
-   cd frontend
+   cd client
    ```
 
 2. **Install dependencies**
@@ -270,7 +270,7 @@ The system uses a relational database with the following key entities:
 
 The application will be available at:
 - Frontend: http://localhost:5173
-- Backend API: http://localhost:5000
+- Backend API: http://127.0.0.1:5000
 
 ## Configuration
 
@@ -290,8 +290,8 @@ MPESA_SHORTCODE=your-mpesa-shortcode
 
 #### Frontend (.env.local)
 ```env
-VITE_API_BASE_URL=http://localhost:5000
-VITE_UPLOAD_URL=http://localhost:5000/uploads
+VITE_API_BASE_URL=http://127.0.0.1:5000
+VITE_UPLOAD_URL=http://127.0.0.1:5000/uploads
 ```
 
 ## API Documentation
@@ -387,7 +387,7 @@ The system comes with pre-seeded accounts for testing:
 
 ```
 property-management-system/
-├── backend/
+├── server/
 │   ├── app.py                 # Flask application factory
 │   ├── models.py              # Database models
 │   ├── routes.py              # Property routes
@@ -396,7 +396,7 @@ property-management-system/
 │   ├── Pipfile                # Python dependencies
 │   └── uploads/               # File upload directory
 │
-├── frontend/
+├── client/
 │   ├── src/
 │   │   ├── components/        # Reusable UI components
 │   │   ├── pages/            # Page components
@@ -412,14 +412,14 @@ property-management-system/
 
 1. **Start the backend**
    ```bash
-   cd backend
+   cd server
    pipenv shell
    python app.py
    ```
 
 2. **Start the frontend**
    ```bash
-   cd frontend
+   cd client
    npm run dev
    ```
 
@@ -446,12 +446,12 @@ flask db upgrade
 
 1. **Environment Setup**
    - Configure production environment variables
-   - Set up PostgreSQL database
+   - Set up SQLite database
    - Configure M-Pesa production credentials
    - Set up file storage (AWS S3, Google Cloud Storage)
 
 2. **Backend Deployment**
-   - Deploy to platforms like Heroku, DigitalOcean, or AWS
+   - Deploy to platforms like Render(Free), Heroku, DigitalOcean, or AWS
    - Configure production WSGI server (Gunicorn)
    - Set up database migrations
    - Configure static file serving
