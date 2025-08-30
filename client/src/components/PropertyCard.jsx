@@ -25,6 +25,12 @@ export default function PropertyCard({ property }) {
           <Link to={`/properties/${property.id}`} className="text-sm text-slate-900 hover:underline">
             View details →
           </Link>
+          <Link
+            to={`/lease/new?property_id=${property.id}`} 
+            className="text-sm bg-blue-600 text-white text-center px-3 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Book Lease
+          </Link>
         </div>
       </CardContent>
     </Card>
