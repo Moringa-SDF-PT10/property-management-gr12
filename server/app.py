@@ -1,7 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api
-from models import db
+from server.models import db
 from routes import PropertyListResource, PropertyResource
 import os
 from flask_sqlalchemy import SQLAlchemy
