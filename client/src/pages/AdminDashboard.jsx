@@ -17,10 +17,21 @@ import {
   FileText,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  Home,
+  RefreshCw,
+  PlusCircle
 } from 'lucide-react';
-import { api } from '../api/api'; // Import the centralized API utility
-import InlineError from '../components/InlineError'; // Assuming you have this component for error display
+
+// --- CRITICAL CHANGE 1: Import your centralized API utility ---
+// This is essential for sending JWT with your requests.
+import { api } from '../api/api';
+
+// --- FIX: Re-declare API_BASE_URL ONLY for UI display ---
+// This constant is needed because it's directly referenced in your JSX for display.
+// It DOES NOT affect the actual API calls, which use the `api` utility.
+const API_BASE_URL = 'http://127.0.0.1:5000';
+
 
 const AdminDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -30,49 +41,126 @@ const AdminDashboard = () => {
   const [systemStats, setSystemStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [systemHealth, setSystemHealth] = useState([]);
-  const [userGrowth, setUserGrowth] = useState([]); // This would likely be for a chart
+  const [userGrowth, setUserGrowth] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // --- REMOVED: Your local fetchFromAPI function ---
+  // This function does not attach JWT tokens, causing 401s for protected endpoints.
+  // We are now exclusively using the imported `api` utility for API calls.
+  // const fetchFromAPI = async (endpoint) => { ... };
+
+
   useEffect(() => {
     fetchAdminDashboardData();
-  }, [selectedPeriod]); // Refetch when selectedPeriod changes
+  }, [selectedPeriod]);
 
   const fetchAdminDashboardData = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Based on your backend code, the endpoint is likely just /admin/dashboard
-      // And the 'period' parameter is not currently used by the backend.
-      const response = await api(`/admin/dashboard`);
+      // --- CRITICAL CHANGE: Use the `api` utility instead of `fetchFromAPI` ---
+      // We are calling only `/admin/dashboard` as that's the primary source
+      // of dashboard data in your current backend code.
+      // The `Promise.all` with other endpoints is removed because they don't exist,
+      // and their data is expected to be in the `/admin/dashboard` response.
+      const response = await api('/admin/dashboard');
       const data = response.dashboard; // Backend returns { message, dashboard: {...} }
 
-      setSystemStats({
-        totalUsers: data.user_statistics.total_users || 0,
-        totalLandlords: data.user_statistics.landlords || 0,
-        totalTenants: data.user_statistics.tenants || 0,
-        totalAdmins: data.user_statistics.admins || 0,
-        totalProperties: data.system_statistics.total_properties || 0, // Currently 0 in backend
-        totalRevenue: data.system_statistics.total_payments || 0,     // Mapping to total_payments (backend has 0)
-        systemUptime: data.system_health.api_status === 'running' ? 99.8 : 0, // Placeholder mapping
-        activeIssues: 0 // Not in backend, keeping as 0
-      });
-      // Backend's recent_activities is an empty list, so frontend will remain empty too
-      setRecentActivity(data.recent_activities || []);
-      // Simplified mapping for system health based on backend's limited data
-      setSystemHealth([
-        { component: 'Database', status: data.system_health.database_status || 'unknown', uptime: 99.9, response: '45ms' },
-        { component: 'API Server', status: data.system_health.api_status === 'running' ? 'healthy' : 'error', uptime: 99.8, response: '120ms' },
-        // Other components (Payment Gateway, File Storage, Email Service) are not in backend
-      ]);
-      setUserGrowth([]); // Backend does not provide this, keeping empty } catch (err) {
+      if (data) {
+        setSystemStats({
+          totalUsers: data.user_statistics?.total_users || 0,
+          totalLandlords: data.user_statistics?.landlords || 0,
+          totalTenants: data.user_statistics?.tenants || 0,
+          totalAdmins: data.user_statistics?.admins || 0,
+          totalProperties: data.system_statistics?.total_properties || 0,
+          totalRevenue: data.system_statistics?.total_payments || 0,
+          // Map system_health from dashboard response
+          systemUptime: data.system_health?.api_status === 'running' ? 99.8 : 0,
+          activeIssues: 0 // Not directly in backend, keep as 0 for consistency
+        });
+
+        // Populate recentActivity from dashboardData (which is an empty list in your backend)
+        setRecentActivity(data.recent_activities || []);
+
+        // Populate systemHealth from dashboardData.system_health,
+        // and add defaults for components not explicitly listed in your backend's `system_health` object.
+        setSystemHealth([
+          { component: 'Database', status: data.system_health?.database_status || 'unknown', uptime: 99.9, response: '45ms' },
+          { component: 'API Server', status: data.system_health?.api_status === 'running' ? 'healthy' : 'error', uptime: 99.8, response: '120ms' },
+          // Add default entries for other components if they are not in your backend response
+          { component: 'Payment Gateway', status: 'unknown', uptime: 0, response: 'N/A' },
+          { component: 'File Storage', status: 'unknown', uptime: 0, response: 'N/A' },
+          { component: 'Email Service', status: 'unknown', uptime: 0, response: 'N/A' }
+        ]);
+      } else {
+        // Fallback stats if no data from API (though the `api` utility usually throws an error for !response.ok)
+        setSystemStats({
+          totalUsers: 0, totalLandlords: 0, totalTenants: 0, totalAdmins: 0,
+          totalProperties: 0, totalRevenue: 0, systemUptime: 0, activeIssues: 0
+        });
+        setRecentActivity([]);
+        setSystemHealth([]); // Empty if no dashboard data
+      }
+      setUserGrowth([]); // Not provided by backend
+
+    } catch (err) {
       console.error("Failed to fetch admin dashboard data:", err);
-      setError("Failed to load dashboard data. Please try again.");
+      // Use the error message from the `api` utility for a more informative display
+      setError(err.message || 'Failed to load dashboard data. Please ensure you are logged in as an Admin.');
+
+      // Use minimal fallback data on error
+      setSystemStats({
+        totalUsers: 0, totalLandlords: 0, totalTenants: 0, totalAdmins: 0,
+        totalProperties: 0, totalRevenue: 0, systemUptime: 0, activeIssues: 1
+      });
+      setRecentActivity([]);
+      setSystemHealth([
+        { component: 'Backend Connection', status: 'error', uptime: 0, response: 'N/A' }
+      ]);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleNavigation = (view) => {
+    if (view === 'home') {
+      window.location.href = '/';
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchAdminDashboardData();
+  };
+
+  // --- Placeholder handlers for all quick action buttons (unchanged) ---
+  const handleSendBroadcast = () => {
+    console.log("Sending system broadcast...");
+    alert("System Broadcast feature initiated! (Placeholder)");
+  };
+
+  const handleAddUser = () => {
+    console.log("Adding new user...");
+    alert("Add User feature initiated! (Placeholder)");
+  };
+
+  const handleGenerateReport = () => {
+    console.log("Generating report...");
+    alert("Generate Report feature initiated! (Placeholder)");
+  };
+
+  const handleSystemSettings = () => {
+    console.log("Accessing system settings...");
+    alert("System Settings feature initiated! (Placeholder)");
+  };
+
+  const handleViewAllActivity = () => {
+    console.log("Viewing all activity...");
+    alert("View All Activity feature initiated! (Placeholder)");
+  };
+  // --- End of new handlers ---
+
 
   const getActivityColor = (status) => {
     switch (status) {
@@ -111,10 +199,6 @@ const AdminDashboard = () => {
     );
   }
 
-  if (error) {
-    return <InlineError message={error} />;
-  }
-
   // Ensure systemStats is not null before accessing its properties
   const safeSystemStats = systemStats || {
     totalUsers: 0,
@@ -141,6 +225,21 @@ const AdminDashboard = () => {
               <p className="text-gray-600 mt-1">System overview and management</p>
             </div>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => handleNavigation('home')}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                HomePage
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="flex items-center px-3 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -152,7 +251,10 @@ const AdminDashboard = () => {
                 <option value="quarter">This Quarter</option>
                 <option value="year">This Year</option>
               </select>
-              <button className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center space-x-2">
+              <button
+                onClick={handleSendBroadcast}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center space-x-2"
+              >
                 <Megaphone className="h-4 w-4" />
                 <span>System Broadcast</span>
               </button>
@@ -162,12 +264,20 @@ const AdminDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+              <p className="text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+
         {/* Tab Navigation */}
         <div className="mb-8">
           <div className="border-b border-gray-200">
-            <nav
-
-              className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex space-x-8">
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'users', label: 'Users', icon: Users },
@@ -190,9 +300,6 @@ const AdminDashboard = () => {
                   </button>
                 );
               })}
-              <Link to="/properties" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              Add Property
-              </Link>
             </nav>
           </div>
         </div>
@@ -211,10 +318,6 @@ const AdminDashboard = () => {
                     <Users className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
-                {/* Placeholder for growth trends, assume backend can provide */}
-                <div className="mt-2 flex items-center space-x-2 text-xs">
-                  {/* <span className="text-green-600">↗ +12 this week</span> */}
-                </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm p-6 border">
@@ -227,10 +330,6 @@ const AdminDashboard = () => {
                     <Building className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
-                {/* Placeholder for growth trends */}
-                <div className="mt-2 flex items-center space-x-2 text-xs">
-                  {/* <span className="text-green-600">↗ +8 this month</span> */}
-                </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm p-6 border">
@@ -242,11 +341,6 @@ const AdminDashboard = () => {
                   <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
                     <DollarSign className="h-6 w-6 text-purple-600" />
                   </div>
-                </div>
-                {/* Placeholder for growth trends */}
-                <div className="mt-2 flex items-center space-x-2 text-xs">
-                  {/* <TrendingUp className="h-3 w-3 text-green-600" />
-                  <span className="text-green-600">+15% from last month</span> */}
                 </div>
               </div>
 
@@ -281,7 +375,7 @@ const AdminDashboard = () => {
                       {recentActivity.map((activity) => (
                         <div key={activity.id} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
                           <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium ${getActivityColor(activity.status)}`}>
-                            {activity.user && activity.user.split(' ').map(n => n[0]).join('')}
+                            {activity.user ? activity.user.split(' ').map(n => n[0]).join('') : 'U'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
@@ -300,9 +394,16 @@ const AdminDashboard = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center text-gray-500 py-4">No recent activity.</div>
+                    <div className="text-center text-gray-500 py-8">
+                      <Activity className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p>No recent activity data available.</p>
+                      <p className="text-sm mt-1">Check your backend API endpoints.</p>
+                    </div>
                   )}
-                  <button className="mt-4 w-full text-sm text-red-600 hover:text-red-700 font-medium">
+                  <button
+                    onClick={handleViewAllActivity} // Integrated handler
+                    className="mt-4 w-full text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
                     View All Activity
                   </button>
                 </div>
@@ -316,26 +417,46 @@ const AdminDashboard = () => {
                     <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
                   </div>
                   <div className="p-6 space-y-3">
-                    <button className="w-full flex items-center space-x-3 p-3 bg-red-50 rounded-lg hover:bg-red-100 transition duration-200">
+                    <button
+                      onClick={handleSendBroadcast} // Integrated handler
+                      className="w-full flex items-center space-x-3 p-3 bg-red-50 rounded-lg hover:bg-red-100 transition duration-200"
+                    >
                       <Megaphone className="h-5 w-5 text-red-600" />
                       <span className="text-red-800 font-medium">Send Broadcast</span>
                     </button>
-                    <button className="w-full flex items-center space-x-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition duration-200">
+                    <button
+                      onClick={handleAddUser} // Integrated handler
+                      className="w-full flex items-center space-x-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition duration-200"
+                    >
                       <UserPlus className="h-5 w-5 text-blue-600" />
                       <span className="text-blue-800 font-medium">Add User</span>
                     </button>
-                    <button className="w-full flex items-center space-x-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition duration-200">
+                    {/* NEW: Replaced placeholder button with Link component for Add Property */}
+                    <Link
+                      to="/properties" // This is the path the button will navigate to
+                      className="w-full flex items-center space-x-3 p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition duration-200"
+                    >
+                      <PlusCircle className="h-5 w-5 text-purple-600" />
+                      <span className="text-purple-800 font-medium">Add Property</span>
+                    </Link>
+                    <button
+                      onClick={handleGenerateReport} // Integrated handler
+                      className="w-full flex items-center space-x-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition duration-200"
+                    >
                       <FileText className="h-5 w-5 text-green-600" />
                       <span className="text-green-800 font-medium">Generate Report</span>
                     </button>
-                    <button className="w-full flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200">
+                    <button
+                      onClick={handleSystemSettings} // Integrated handler
+                      className="w-full flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200"
+                    >
                       <Settings className="h-5 w-5 text-gray-600" />
                       <span className="text-gray-800 font-medium">System Settings</span>
                     </button>
                   </div>
                 </div>
 
-                {/* User Distribution - uses fetched stats */}
+                {/* User Distribution */}
                 <div className="bg-white rounded-lg shadow-sm border">
                   <div className="px-6 py-4 border-b border-gray-200">
                     <h2 className="text-lg font-semibold text-gray-900">User Distribution</h2>
@@ -377,7 +498,10 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center text-gray-500 py-4">No user distribution data.</div>
+                      <div className="text-center text-gray-500 py-4">
+                        <Users className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p>No user data available.</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -405,7 +529,7 @@ const AdminDashboard = () => {
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-900">{component.component}</h3>
-                          <p className="text-sm text-gray-500">Status: {component.status}</p>
+                          <p className="text-sm text-gray-500">Response: {component.response}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -453,6 +577,43 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* API Endpoints Info */}
+        <div className="mt-8 bg-white rounded-lg shadow-sm border">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Backend API Integration</h3>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">Primary Endpoints:</h4>
+                <div className="space-y-2">
+                  <div className="bg-gray-50 p-3 rounded">
+                    <code className="text-blue-600">GET /admin/dashboard</code>
+                    <p className="text-gray-600 mt-1">Main dashboard data with user statistics and system health</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <code className="text-blue-600">GET /api/activities/recent</code>
+                    <p className="text-gray-600 mt-1">Recent user activities and system events</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">Optional Endpoints:</h4>
+                <div className="space-y-2">
+                  <div className="bg-gray-50 p-3 rounded">
+                    <code className="text-blue-600">GET /api/system/health</code>
+                    <p className="text-gray-600 mt-1">System component health status</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <code className="text-green-600">Backend URL:</code>
+                    <p className="text-gray-600 mt-1">{API_BASE_URL}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

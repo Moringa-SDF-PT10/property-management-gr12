@@ -34,6 +34,18 @@ def create_app():
 
     api = Api(app)
 
+    from views import (
+        RegisterResource, LoginResource, LogoutResource, RefreshResource, ProfileResource,
+        DashboardResource, UsersResource, HealthCheckResource, UserManagementResource,
+        LandlordDashboardResource, TenantDashboardResource, AdminDashboardResource,
+        DashboardStatsResource, UserProfileDashboardResource, LeaseListResource, LeaseResource,
+        BillListResource, BillResource, LeaseVacateResource, LeaseVacateApprovalResource,
+        PaymentInitResource, MpesaCallbackResource, PaymentStatusResource, PaymentHistoryResource,
+        LandlordPaymentDashboardResource, RentReminderResource, RepairRequestResource,
+        RepairRequestDetailResource, NotificationListResource, NotificationResource,
+        BroadcastNotificationResource, TenantListResource
+    )
+
     # Register resources
     api.add_resource(PropertyListResource, "/properties")
     api.add_resource(PropertyResource, "/properties/<int:id>")
@@ -76,10 +88,10 @@ def create_app():
 
     return app
 
-from views import *
+#from views import *
 # Run the app
 if __name__ == "__main__":
-    app = create_app()
-    with app.app_context():
+    app_instance = create_app()
+    with app_instance.app_context():
         db.create_all()
-    app.run(debug=True, port=5000)
+    app_instance.run(debug=True, port=5000)
