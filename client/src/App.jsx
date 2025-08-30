@@ -1,69 +1,131 @@
-// src/App.jsx
+// App.jsx
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-import LandlordDashboard from './pages/LandlordDashboard.jsx'; // Import the LandlordDashboard
-import LeaseDetailPage from './pages/LeaseDetailPage.jsx';
-import NotificationsFeed from './pages/NotificationsFeed.jsx';
-import PaymentPage from './pages/PaymentPage.jsx';
-import PaymentResultPage from './pages/PaymentResultPage.jsx';
-import RepairRequestFormPage from './pages/RepairRequestFormPage.jsx';
-import NoPage from './pages/NoPage.jsx';
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Shell from "./layout/Shell";
-import HomePage from "./pages/HomePagePage";
-import DashboardPage from "./pages/DashboardPage";
-import PropertiesListPage from "./pages/PropertiesListPage";
-import PropertyDetailsPage from "./pages/PropertyDetailsPage";
-import PropertyFormPage from "./pages/PropertyFormPage";
-import LeaseFormPage from "./pages/LeaseFormPage";
+// Layout
+import Navbar from "./pages/navbar";
+
+// Pages
+import HomePage from "./pages/HomePage";
+import LoginForm from "./pages/LoginForm";
+import SignupForm from "./pages/SignupForm";
+import LandlordDashboard from "./pages/LandlordDashboard";
 import TenantDashboardPage from "./pages/TenantDashboardPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import PropertiesListPage from "./pages/PropertiesListPage";
+import PropertyFormPage from "./pages/PropertyFormPage";
+import PropertyDetailsPage from "./pages/PropertyDetailsPage";
+import LeaseFormPage from "./pages/LeaseFormPage";
+import LeaseDetailPage from "./pages/LeaseDetailPage";
 import VacateFormPage from "./pages/VacateFormPage";
+import PaymentPage from "./pages/PaymentPage";
+import PaymentResultPage from "./pages/PaymentResultPage";
+import RepairRequestFormPage from "./pages/RepairRequestFormPage";
+import NotificationsFeed from "./pages/NotificationsFeed";
+import NoPage from "./pages/NoPage";
 
+// ✅ check auth status via localStorage
+const isAuthenticated = () => {
+  return localStorage.getItem("user") !== null && localStorage.getItem("accessToken") !== null;
+};
+
+const getUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user"));
+  } catch {
+    return null;
+  }
+};
+
+// ✅ Layouts
+const AuthenticatedLayout = ({ children }) => (
+  <div className="min-h-screen bg-gray-100">
+    <Navbar />
+    <main className="p-6">{children}</main>
+  </div>
+);
+
+const PublicLayout = ({ children }) => (
+  <div className="min-h-screen bg-gray-50">
+    <Navbar isPublic={true} />
+    <main className="p-6">{children}</main>
+  </div>
+);
+
+// ✅ Route Wrappers
+const PrivateRoute = ({ element }) => {
+  return isAuthenticated() ? (
+    <AuthenticatedLayout>{element}</AuthenticatedLayout>
+  ) : (
+    <Navigate to="/auth/login" />
+  );
+};
+
+const PublicOnlyRoute = ({ element }) => {
+  return isAuthenticated() ? (
+    <Navigate to="/dashboard" />
+  ) : (
+    <PublicLayout>{element}</PublicLayout>
+  );
+};
+
+// ✅ Role-based dashboard resolver
+const RoleBasedDashboardResolver = () => {
+  const user = getUser();
+
+  if (!user) return <Navigate to="/auth/login" />;
+
+  switch (user.role) {
+    case "landlord":
+      return <LandlordDashboard />;
+    case "tenant":
+      return <TenantDashboardPage />;
+    case "admin":
+      return <AdminDashboard />;
+    default:
+      return <Navigate to="/auth/login" />;
+  }
+};
 
 export default function App() {
   return (
-    <Shell>
+    <Router>
       <Routes>
-        {/* Make LandlordDashboard the default root page */}
-        <Route path="/" element={<LandlordDashboard />} />
+        {/* Public */}
+        <Route path="/" element={<PublicLayout><HomePage /></PublicLayout>} />
+        <Route path="/auth/register" element={<PublicOnlyRoute element={<SignupForm />} />} />
+        <Route path="/auth/login" element={<PublicOnlyRoute element={<LoginForm />} />} />
 
-      <Shell>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/properties" element={<PropertiesListPage />} />
-          <Route path="/properties/new" element={<PropertyFormPage />} />
-          <Route path="/properties/:id" element={<PropertyDetailsPage />} />
-          <Route path="/properties/:id/edit" element={<PropertyFormPage />} />
-          <Route path="/leases-booking" element={<LeaseFormPage />} />
-          <Route path="/tenant/dashboard" element={<TenantDashboardPage />} />
-          <Route path= "/leases/:leaseId/vacate" element={<VacateFormPage />} />
+        {/* Protected - Main dashboard that routes based on role */}
+        <Route path="/dashboard" element={<PrivateRoute element={<RoleBasedDashboardResolver />} />} />
 
-        </Routes>
-      </Shell>
+        {/* Protected - Direct role-specific dashboards */}
+        <Route path="/landlord/dashboard" element={<PrivateRoute element={<LandlordDashboard />} />} />
+        <Route path="/tenant/dashboard" element={<PrivateRoute element={<TenantDashboardPage />} />} />
+        <Route path="/admin/dashboard" element={<PrivateRoute element={<AdminDashboard />} />} />
 
-        {/* Your existing dashboard page (which currently says "Landlord Dashboard")
-            might be renamed or merged with the new LandlordDashboard
-            Consider if you need both. For now, keeping it here. */}
-        <Route path="/dashboard" element={<DashboardPage />} />
+        {/* Protected - Property routes */}
+        <Route path="/properties" element={<PrivateRoute element={<PropertiesListPage />} />} />
+        <Route path="/properties/new" element={<PrivateRoute element={<PropertyFormPage />} />} />
+        <Route path="/properties/:id" element={<PrivateRoute element={<PropertyDetailsPage />} />} />
+        <Route path="/properties/:id/edit" element={<PrivateRoute element={<PropertyFormPage />} />} />
 
-        {/* Other new routes */}
-        {/* The route below is now redundant if "/" points to LandlordDashboard */}
-        {/* <Route path="/landlord-dashboard" element={<LandlordDashboard />} /> */}
-        {/* If you want to keep a separate explicit route to the landlord dashboard,
-            you can, but it might be confusing if "/" also goes there.
-            A common pattern is to redirect from /landlord-dashboard to / if / is the primary. */}
-        <Route path="/leases/:leaseId" element={<LeaseDetailPage />} />
-        <Route path="/notifications" element={<NotificationsFeed />} />
-        <Route path="/payment" element={<PaymentPage />} />
-        <Route path="/payments/result/:paymentId" element={<PaymentResultPage />} />
-        <Route path="/properties/:propertyId/repair-request" element={<RepairRequestFormPage />} />
+        {/* Protected - Lease routes */}
+        <Route path="/leases-booking" element={<PrivateRoute element={<LeaseFormPage />} />} />
+        <Route path="/leases/:leaseId" element={<PrivateRoute element={<LeaseDetailPage />} />} />
+        <Route path="/leases/:leaseId/vacate" element={<PrivateRoute element={<VacateFormPage />} />} />
 
-        {/* Catch-all for undefined routes */}
+        {/* Protected - Payment routes */}
+        <Route path="/payment" element={<PrivateRoute element={<PaymentPage />} />} />
+        <Route path="/payments/result/:paymentId" element={<PrivateRoute element={<PaymentResultPage />} />} />
+
+        {/* Protected - Other routes */}
+        <Route path="/properties/:propertyId/repair-request" element={<PrivateRoute element={<RepairRequestFormPage />} />} />
+        <Route path="/notifications" element={<PrivateRoute element={<NotificationsFeed />} />} />
+
+        {/* Catch-all */}
         <Route path="*" element={<NoPage />} />
       </Routes>
-    </Shell>
+    </Router>
   );
 }
-
-
-

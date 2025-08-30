@@ -50,6 +50,8 @@ class User(db.Model, SerializerMixin):
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
 
     leases = db.relationship("Lease", back_populates="tenant", cascade="all, delete-orphan")
+    properties = db.relationship("Property", back_populates="landlord")
+    
     serialize_rules = ("-leases.tenant", "-leases.property")
 
 
@@ -120,6 +122,9 @@ class Property(db.Model, SerializerMixin):
     rent = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), nullable=False, default="vacant")
     pictures = db.Column(db.Text, nullable=True)
+    landlord_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    landlord = db.relationship("User", back_populates="properties")
 
     leases = db.relationship("Lease", back_populates="property", cascade="all, delete-orphan")
 

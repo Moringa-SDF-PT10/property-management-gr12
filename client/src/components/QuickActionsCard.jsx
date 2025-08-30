@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
 import { Plus, Edit } from "lucide-react";
 
 export default function QuickActionsCard() {

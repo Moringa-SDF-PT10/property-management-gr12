@@ -1,6 +1,6 @@
 from flask_restful import Resource, Api, reqparse
 from flask import request, jsonify, render_template, flash, redirect, url_for, make_response
-from models import db, User, Lease, Bill, Notification, Payment, RepairRequest
+from models import db, User, Lease, Bill, Notification, Payment, RepairRequest, Property
 from flask_jwt_extended import create_access_token, create_refresh_token, JWTManager, get_jwt_identity, get_jwt, get_jti, jwt_required, verify_jwt_in_request
 import base64
 from functools import wraps
@@ -225,7 +225,7 @@ class DashboardResource(Resource):
                 dashboard_data.update({
                     "properties_count": 0, # To be implemented by Ian
                     "tenants_count": 0, # To be populated later. Harriet to check on this
-                    "recent_notifications": [] 
+                    "recent_notifications": []
                 })
             elif user.role == "tenant":
                 active_leases = Lease.query.filter_by(tenant_id = user.id,status ="active").count()
@@ -345,8 +345,11 @@ class UserProfileDashboardResource(Resource):
 
 
 
+
+
 class LandlordDashboardResource(Resource):
     @roles_required('landlord')
+    @jwt_required() # Add jwt_required if not already handled by roles_required
     def get(self):
         """Enhanced landlord dashboard with comprehensive data"""
         try:
@@ -356,12 +359,75 @@ class LandlordDashboardResource(Resource):
             if not landlord:
                 return {"message": "Landlord not found"}, 404
 
+            # --- Fetch comprehensive data ---
+            properties = Property.query.filter_by(landlord_id=landlord.id).all()
+            total_properties = len(properties)
+            occupied_units = 0
+            vacant_units = 0
+
+            # Initialize tenant and lease data
+            total_leases = 0
+            up_to_date_tenants_list = []
+            behind_tenants_list = []
+            overdue_payments_count = 0
+            monthly_revenue_sum = 0
+            total_collected_sum = 0
+            pending_payments_sum = 0
+
+            for prop in properties:
+                # Assuming a property can have units, and units have leases
+                # You'll need to adjust this based on your actual Property/Unit/Lease model structure
+                # For simplicity, let's assume Property directly links to Leases
+                property_leases = Lease.query.filter_by(property_id=prop.id, status='active').all()
+                for lease in property_leases:
+                    total_leases += 1
+                    # Check payment status (simplified logic, adjust as per your payment tracking)
+                    # This is a placeholder logic: you'd need to query Payment records for this lease
+                    # and compare against expected rent due dates.
+                    payments_for_lease = Payment.query.filter_by(lease_id=lease.id).all()
+
+                    # Example: Check if last payment was within this month and covered rent
+                    # This part needs *your* actual payment logic to determine "up to date" or "behind"
+                    is_up_to_date = True # Placeholder
+                    if is_up_to_date:
+                        up_to_date_tenants_list.append(lease.tenant.to_dict()) # Assuming Lease has a 'tenant' relationship
+                    else:
+                        behind_tenants_list.append(lease.tenant.to_dict())
+                        overdue_payments_count += 1
+
+                    # Calculate financial summaries
+                    # Again, this needs your actual payment/bill logic
+                    # For example: sum up `Payment.amount` for the current month vs `Bill.amount`
+                    monthly_revenue_sum += lease.monthly_rent # Simplistic, assumes all rent is collected
+                    total_collected_sum += sum(p.amount for p in payments_for_lease if p.status == 'completed')
+                    pending_payments_sum += sum(b.amount for b in Bill.query.filter_by(lease_id=lease.id, status='pending').all())
+
+
+                # Occupancy logic (adjust based on your Unit model if you have one)
+                # For simplicity, assuming if a property has any active leases, it's occupied
+                if property_leases:
+                    occupied_units += 1
+                else:
+                    vacant_units += 1
+
+
+            # Maintenance requests (assuming 'property_id' or 'landlord_id' on RepairRequest)
+            maintenance_requests = RepairRequest.query.join(Property).filter(
+                Property.landlord_id == landlord.id,
+                RepairRequest.status.in_(['pending', 'in_progress']) # Count active requests
+            ).count()
+
+
+            # Collection Rate calculation (adjust as needed)
+            expected_monthly_revenue = sum(p.monthly_rent for p in properties) # Simplified
+            collection_rate = (total_collected_sum / expected_monthly_revenue * 100) if expected_monthly_revenue > 0 else 0
+
             # Notification counts
             unread_notifications = Notification.query.filter_by(recipient_id=landlord.id, is_read=False).count()
-            recent_notifications = Notification.query.filter_by(recipient_id=landlord.id).order_by(Notification.created_at.desc()).limit(5).all()
-            recent_broadcasts = Notification.query.filter_by(sender_id=landlord.id, is_broadcast=True).order_by(Notification.created_at.desc()).limit(5).all()
+            recent_notifications = [n.to_dict() for n in Notification.query.filter_by(recipient_id=landlord.id).order_by(Notification.created_at.desc()).limit(5).all()]
+            recent_broadcasts = [n.to_dict() for n in Notification.query.filter_by(sender_id=landlord.id, is_broadcast=True).order_by(Notification.created_at.desc()).limit(5).all()]
 
-            # Dashboard data structure for landlord
+
             dashboard_data = {
                 "landlord_info": {
                     "name": f"{landlord.first_name} {landlord.last_name}",
@@ -370,35 +436,47 @@ class LandlordDashboardResource(Resource):
                     "joined_date": landlord.created_at.isoformat() if landlord.created_at else None
                 },
                 "property_summary": {
-                    "total_properties": 0,
-                    "occupied_units": 0,
-                    "vacant_units": 0,
-                    "maintenance_requests": 0
+                    "total_properties": total_properties,
+                    "occupied_units": occupied_units,
+                    "vacant_units": vacant_units,
+                    "maintenance_requests": maintenance_requests
                 },
                 "financial_summary": {
-                    "monthly_revenue": 0,
-                    "pending_payments": 0,
-                    "total_collected": 0,
-                    "overdue_payments": 0
+                    "monthly_revenue": monthly_revenue_sum,
+                    "pending_payments": pending_payments_sum,
+                    "total_collected": total_collected_sum,
+                    "overdue_payments": overdue_payments_count # Use the count from lease checks
                 },
                 "tenant_summary": {
-                    "total_tenants": 0,
-                    "new_tenants_this_month": 0,
-                    "tenants_behind_rent": 0
+                    "total_tenants": total_leases, # Assuming one tenant per lease for simplicity
+                    "new_tenants_this_month": 0, # Implement logic to count new leases
+                    "tenants_behind_rent": len(behind_tenants_list)
                 },
-                "recent_activities": [],
+                "recent_activities": [], # Populate with actual recent activities (e.g., new leases, payments, repair updates)
                 "notifications": {
-                    "unread_count": 0,
-                    "recent_messages": []
+                    "unread_count": unread_notifications,
+                    "recent_messages": recent_notifications # You might want a unified list here
                 },
                 "dashboard_type": "landlord",
-                "last_login": landlord.updated_at.isoformat() if landlord.updated_at else None
+                "last_login": landlord.updated_at.isoformat() if landlord.updated_at else None,
+
+                # --- New summary structure for frontend ---
+                "summary": {
+                    "total_leases": total_leases,
+                    "up_to_date_count": len(up_to_date_tenants_list),
+                    "behind_count": len(behind_tenants_list),
+                    "collection_rate": round(collection_rate, 2)
+                },
+                "up_to_date_tenants": up_to_date_tenants_list,
+                "behind_tenants": behind_tenants_list
             }
             return {
                 "message": "Landlord dashboard data retrieved successfully",
                 "dashboard": dashboard_data
             } , 200
         except Exception as e:
+            # Log the error for better debugging
+            print(f"Error in LandlordDashboardResource: {e}")
             return {"message": "Error fetching landlord dashboard", "error": str(e)}, 500
 
 class TenantDashboardResource(Resource):
@@ -411,7 +489,7 @@ class TenantDashboardResource(Resource):
 
             if not tenant:
                 return {"message": "Tenant not found"}, 404
-            
+
             # Notification counts
             unread_notifications = Notification.query.filter(
                 ((Notification.recipient_id == tenant.id) | (Notification.is_broadcast == True)) & (Notification.is_read == False)
@@ -978,7 +1056,7 @@ class NotificationListResource(Resource):
 
                 if not tenants:
                     return {"message": "No active tenants found"}, 404
-                
+
                 notifications_created = []
                 for tenant in tenants:
                     notification = Notification(
@@ -1067,7 +1145,7 @@ class NotificationResource(Resource):
             notification = Notification.query.get(notification_id)
             if not notification:
                 return {"message": "Notification not found"}, 404
-            
+
             if notification.recipient_id != user.id and not notification.is_broadcast:
                 return {"message": "Unauthorized"}, 403
 
@@ -1089,7 +1167,7 @@ class NotificationResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": "Error updating notification", "error": str(e)}, 500
-    
+
     @roles_required('landlord', 'admin')
     def delete(self, notification_id):
         try:
@@ -1099,7 +1177,7 @@ class NotificationResource(Resource):
             notification = Notification.query.get(notification_id)
             if not notification:
                 return {"message": "Notification not found"}, 404
-            
+
             if notification.sender_id != user.id:
                 return {"message": "Unauthorized - only sender can delete"}, 403
             db.session.delete()
@@ -1108,7 +1186,7 @@ class NotificationResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": "Error deleting notification", "error": str(e)}, 500
-        
+
 class BroadcastNotificationResource(Resource):
     @roles_required()
     def post(self):
@@ -1118,7 +1196,7 @@ class BroadcastNotificationResource(Resource):
 
             if not sender:
                 return {"message": "Sender not found"}, 404
-            
+
             data = request.get_json() or {}
 
             required_fields = ["title", "message"]
@@ -1424,7 +1502,7 @@ class LandlordPaymentDashboardResource(Resource): # Dashboard data for landlords
 
 
 
-    
+
 
 class RentReminderResource(Resource):
     """Send rent reminders (automated system)"""

@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom"; // For navigation and propertyId from URL
-// import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-// import { Textarea } from "@/components/ui/textarea";
+
 
 import { Button } from "@/components/ui/button";
 import InlineError from "../components/InlineError"; // For error display
