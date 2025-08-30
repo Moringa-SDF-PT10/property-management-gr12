@@ -576,7 +576,7 @@ class AdminDashboardResource(Resource):
 
             # Notification statistics
             total_notifications = Notification.query.count()
-            broadcast_notifications = Notification.query.filter_by(is_roadcast=True).count()
+            broadcast_notifications = Notification.query.filter_by(is_broadcast=True).count()
             unread_notifications = Notification.query.filter_by(is_read=False).count()
             recent_system_notifications = Notification.query.filter_by(recipient_id=admin.id).order_by(Notification.created_at.desc()).limit(5).all()
 
