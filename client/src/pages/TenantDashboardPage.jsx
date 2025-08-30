@@ -28,9 +28,24 @@ export default function TenantDashboardPage() {
   if (loading) return <p className="p-4">Loading leases...</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
+  // 👉 Check if tenant already has an active lease
+  const hasActiveLease = leases.some((lease) => lease.status === "active");
+
   return (
     <div className="p-4">
       <h2 className="text-xl font-bold mb-4">My Leases</h2>
+
+      {/* Show "Book a Lease" button ONLY if no active leases */}
+      {!hasActiveLease && (
+        <div className="mb-4">
+          <Link
+            to="/leases-booking"
+            className="bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            Book a Lease
+          </Link>
+        </div>
+      )}
 
       {leases.length === 0 ? (
         <p>No leases found.</p>
@@ -44,12 +59,15 @@ export default function TenantDashboardPage() {
               <p><strong>Rent:</strong> {lease.rent_amount}</p>
               <p><strong>Status:</strong> {lease.status}</p>
 
-              <Link 
-                to={`/leases/${lease.id}/vacate`} 
-                className="mt-2 inline-block bg-red-600 text-white px-3 py-1 rounded"
-            >
-                Submit Vacate Notice
-            </Link>
+              {/* Vacate button only makes sense if active */}
+              {lease.status === "active" && (
+                <Link
+                  to={`/leases/${lease.id}/vacate`}
+                  className="mt-2 inline-block bg-red-600 text-white px-3 py-1 rounded"
+                >
+                  Submit Vacate Notice
+                </Link>
+              )}
             </li>
           ))}
         </ul>

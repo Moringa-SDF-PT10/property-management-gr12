@@ -52,7 +52,7 @@ class User(db.Model, SerializerMixin):
     leases = db.relationship("Lease", back_populates="tenant", cascade="all, delete-orphan")
     properties = db.relationship("Property", back_populates="landlord")
     
-    serialize_rules = ("-leases.tenant", "-leases.property")
+    serialize_rules = ("-leases.tenant", "-leases.property" "-properties.landlord","-sent_notifications.sender","-received_notifications.recipient","-sent_notifications.recipient", "-received_notifications.sender",)
 
 
     def __repr__(self):
@@ -127,6 +127,11 @@ class Property(db.Model, SerializerMixin):
     landlord = db.relationship("User", back_populates="properties")
 
     leases = db.relationship("Lease", back_populates="property", cascade="all, delete-orphan")
+
+    serialize_rules = (
+        "-leases.property",
+        "-landlord.properties",
+    )
 
     def to_dict(self):
         return {
@@ -265,7 +270,7 @@ class Notification(db.Model, SerializerMixin):
     sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_notifications")
     recipient = db.relationship("User", foreign_keys=[recipient_id], backref="received_notifications")
 
-    serialize_rules = ("-sender.sent_notifications", "-recipient.received_notifications", "-sender.password_hash", "-recipient.password_hash")
+    serialize_rules = ("-sender.sent_notifications", "-recipient.received_notifications","-sender.received_notifications", "-recipient.sent_notifications","-sender.password_hash", "-recipient.password_hash")
 
     @validates('notification_type')
     def validate_notification_type(self, key, value):

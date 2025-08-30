@@ -201,6 +201,7 @@ export async function apiFormData(endpoint, { method = "POST", formData } = {}) 
   };
 
   try {
+    console.log("Fetching:", `${API_BASE_URL}${endpoint}`);
     let response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
     // --- Handle 401 Unauthorized errors with token refresh for FormData ---

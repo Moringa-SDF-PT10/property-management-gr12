@@ -111,7 +111,8 @@ export default function App() {
         <Route path="/properties/:id/edit" element={<PrivateRoute element={<PropertyFormPage />} />} />
 
         {/* Protected - Lease routes */}
-        <Route path="/leases-booking" element={<PrivateRoute element={<LeaseFormPage />} />} />
+        <Route path="/properties/:propertyId/lease" element={<PrivateRoute element={<LeaseFormPage />} />} />
+        <Route path="/leases/new" element={<PrivateRoute element={<LeaseFormPage />} />} />
         <Route path="/leases/:leaseId" element={<PrivateRoute element={<LeaseDetailPage />} />} />
         <Route path="/leases/:leaseId/vacate" element={<PrivateRoute element={<VacateFormPage />} />} />
 
