@@ -1,8 +1,8 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api
-from server.models import db
-from server.routes import PropertyListResource, PropertyResource
+from models import db
+from routes import PropertyListResource, PropertyResource
 import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
