@@ -88,17 +88,12 @@ def create_app():
 
     return app
 
-#from views import *
+from views import *
+app_instance = create_app()
 # Run the app
-# if __name__ == "__main__":
-#     app_instance = create_app()
-#     with app_instance.app_context():
-#         db.create_all()
-#     app_instance.run(debug=True, port=5000)
 if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5000))  # fallback to 5000 for local dev
+    app_instance.run(host="0.0.0.0", port=port, debug=True)
 
-    app = create_app()
-
-
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
