@@ -26,7 +26,12 @@ def create_app():
 
 
     # Enable CORS for your frontend
-    CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173"], supports_credentials=True)
+    CORS(app, origins=[
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://property-management-gr12-2-u3m7.onrender.com"
+    ], supports_credentials=True)
+
 
     db.init_app(app)
     jwt = JWTManager(app)
