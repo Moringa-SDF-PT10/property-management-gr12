@@ -85,12 +85,21 @@ def create_app():
     @app.route("/uploads/<filename>")
     def uploaded_file(filename):
         return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    print("Registered routes:", [str(rule) for rule in app.url_map.iter_rules()])
 
     return app
 
+
+
 from views import *
 app_instance = create_app()
+
+@app_instance.route("/")
+def index():
+    return {"message": "Backend is running! Check /properties or /auth/login"}
+
 # Run the app
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))  # fallback to 5000 for local dev

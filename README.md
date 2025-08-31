@@ -144,7 +144,7 @@ This property management system streamlines rental operations for landlords, ten
 
 ### Backend
 - **Framework**: Flask 3.x
-- **Database**: SQLAlchemy with SQLite (development) 
+- **Database**: SQLAlchemy with SQLite (development)
 - **Authentication**: Flask-JWT-Extended
 - **API**: Flask-RESTful
 - **File Handling**: Werkzeug secure file upload
@@ -207,8 +207,8 @@ The system uses a relational database with the following key entities:
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd property-management-system
+   git clone git@github.com:Moringa-SDF-PT10/property-management-gr12.git
+   cd property-management-gr12
    ```
 
 2. **Create virtual environment**
@@ -218,25 +218,27 @@ The system uses a relational database with the following key entities:
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+   or
+
+
    ```bash
    pip install pipenv
    pipenv install
    pipenv shell
    ```
 
-4. **Environment configuration**
+3. **Environment configuration**
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
 
-5. **Database setup**
+4. **Database setup**
    ```bash
    python seed.py  # Creates tables and seeds initial data
    ```
 
-6. **Run the backend**
+5. **Run the backend**
    ```bash
    python app.py
    ```
@@ -269,8 +271,8 @@ The system uses a relational database with the following key entities:
    ```
 
 The application will be available at:
-- Frontend: http://localhost:5173
-- Backend API: http://127.0.0.1:5000
+- Frontend: https://property-management-gr12-2-u3m7.onrender.com/
+- Backend API: https://property-management-gr12-1-a43z.onrender.com/
 
 ## Configuration
 
@@ -290,8 +292,8 @@ MPESA_SHORTCODE=your-mpesa-shortcode
 
 #### Frontend (.env.local)
 ```env
-VITE_API_BASE_URL=http://127.0.0.1:5000
-VITE_UPLOAD_URL=http://127.0.0.1:5000/uploads
+VITE_API_BASE_URL= https://property-management-gr12-1-a43z.onrender.com
+VITE_UPLOAD_URL= https://property-management-gr12-1-a43z.onrender.com/uploads
 ```
 
 ## API Documentation
@@ -424,8 +426,8 @@ property-management-system/
    ```
 
 3. **Access the application**
-   - Frontend: http://localhost:5173/
-   - Backend API: http://127.0.0.1:5000/
+   - Frontend:https://property-management-gr12-2-u3m7.onrender.com/
+   - Backend API:https://property-management-gr12-1-a43z.onrender.com/
 
 ### Database Operations
 
