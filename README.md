@@ -2,6 +2,9 @@
 
 A comprehensive full-stack web application for managing rental properties, tenants, and landlords. Built with Flask (Python) backend and React frontend, featuring role-based access control, payment processing, and real-time notifications.
 
+## Video Link
+- https://drive.google.com/file/d/1hPtoYoudmH7G6PJECdYG4xOPdZHruNHH/view?usp=drive_link
+
 ## Table of Contents
 
 - [Overview](#overview)
