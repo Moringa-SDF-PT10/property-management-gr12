@@ -30,15 +30,32 @@ def roles_required(*allowed_roles):
         @wraps(fn)
         @jwt_required()
         def wrapper(*args, **kwargs):
-            role = get_jwt().get("role")
-            if role not in allowed_roles:
+            try:
+                # Get the user identity from JWT token
+                user_id = get_jwt_identity()
+
+                # Fetch the user from database to get their role
+                user = User.query.filter_by(public_id=user_id).first()
+
+                if not user:
+                    return {
+                        "message": "User not found"
+                    }, 404
+
+                # Check if user's role is in allowed roles
+                if user.role not in allowed_roles:
+                    return {
+                        "message": f"Access denied. Required role: {' or '.join(allowed_roles)}. Your role: {user.role}"
+                    }, 403  # Changed from 401 to 403 (Forbidden)
+
+                return fn(*args, **kwargs)
+            except Exception as e:
                 return {
-                    "message": "Huu nani hana ruhusa?"
-                }, 401
-            return fn(*args, **kwargs)
+                    "message": "Error checking user permissions",
+                    "error": str(e)
+                }, 500
         return wrapper
     return decorator
-
 
 class RegisterResource(Resource):
     def post(self):

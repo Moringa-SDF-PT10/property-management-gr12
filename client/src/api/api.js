@@ -1,7 +1,7 @@
 // src/api/api.js
 
 // Use environment variable for API_BASE_URL (Vite specific)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL  || "http://localhost:5000" ;
 
 export { API_BASE_URL }; // Export it for other parts of the app
 

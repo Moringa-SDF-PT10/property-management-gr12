@@ -23,23 +23,23 @@ export default function LeaseDetailPage() {
   };
 
   // // ✅ Fetch Payment History
-  const fetchPaymentHistory = async () => {
-    try {
-      setError(null);
-      const data = await api(`/payments/lease/${leaseId}`);
-      setPaymentHistory(data.payments || []);
-    } catch (err) {
-      console.error("Failed to fetch payment history:", err);
-      setError("Failed to load payment history. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const fetchPaymentHistory = async () => {
+  //   try {
+  //     setError(null);
+  //     const data = await api(`/payments/lease/${leaseId}`);
+  //     setPaymentHistory(data.payments || []);
+  //   } catch (err) {
+  //     console.error("Failed to fetch payment history:", err);
+  //     setError("Failed to load payment history. Please try again.");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   // ✅ Load data when component mounts
   useEffect(() => {
     fetchLeaseDetails();
-    fetchPaymentHistory();
+    // fetchPaymentHistory();
   }, [leaseId]);
 
   if (loading) return <p className="text-center text-gray-500">Loading lease details...</p>;

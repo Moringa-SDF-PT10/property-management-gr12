@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
 import {
   Shield,
   Users,
@@ -20,53 +20,58 @@ import {
   XCircle,
   Home,
   RefreshCw,
-  PlusCircle
+  PlusCircle,
+  Loader2 // Added Loader2 for specific user data loading
 } from 'lucide-react';
-
-// --- CRITICAL CHANGE 1: Import your centralized API utility ---
-// This is essential for sending JWT with your requests.
-import { api } from '../api/api';
-
-// --- FIX: Re-declare API_BASE_URL ONLY for UI display ---
-// This constant is needed because it's directly referenced in your JSX for display.
-// It DOES NOT affect the actual API calls, which use the `api` utility.
-const API_BASE_URL = 'http://127.0.0.1:5000';
-
+import { api } from '../api/api.js';
 
 const AdminDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [activeTab, setActiveTab] = useState('overview');
 
-  // State for fetched data
+  // State for fetched dashboard data
   const [systemStats, setSystemStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [systemHealth, setSystemHealth] = useState([]);
-  const [userGrowth, setUserGrowth] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // --- NEW STATE FOR USERS ---
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [errorUsers, setErrorUsers] = useState(null);
 
-  // --- REMOVED: Your local fetchFromAPI function ---
-  // This function does not attach JWT tokens, causing 401s for protected endpoints.
-  // We are now exclusively using the imported `api` utility for API calls.
-  // const fetchFromAPI = async (endpoint) => { ... };
+  const [loadingDashboard, setLoadingDashboard] = useState(true); // Renamed for clarity
+  const [errorDashboard, setErrorDashboard] = useState(null); // Renamed for clarity
 
+  const navigate = useNavigate(); // Initialize useNavigate for redirects
 
-  useEffect(() => {
-    fetchAdminDashboardData();
-  }, [selectedPeriod]);
-
-  const fetchAdminDashboardData = async () => {
-    setLoading(true);
-    setError(null);
+  // Helper functions for auth checks
+  const getAccessToken = () => localStorage.getItem('accessToken');
+  const getUserRole = () => {
     try {
-      // --- CRITICAL CHANGE: Use the `api` utility instead of `fetchFromAPI` ---
-      // We are calling only `/admin/dashboard` as that's the primary source
-      // of dashboard data in your current backend code.
-      // The `Promise.all` with other endpoints is removed because they don't exist,
-      // and their data is expected to be in the `/admin/dashboard` response.
-      const response = await api('/admin/dashboard');
-      const data = response.dashboard; // Backend returns { message, dashboard: {...} }
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user ? user.role : null;
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+      return null;
+    }
+  };
+
+
+  const fetchAdminDashboardData = useCallback(async () => {
+    setLoadingDashboard(true);
+    setErrorDashboard(null);
+    try {
+      const token = getAccessToken();
+      const userRole = getUserRole();
+
+      if (!token || userRole !== 'admin') {
+        setErrorDashboard("You are not authorized to view this page.");
+        navigate('/auth/login', { state: { message: "Access denied. Please log in as an administrator." } });
+        return;
+      }
+
+      const response = await api('/admin/dashboard'); // Use the `api` utility
+      const data = response.dashboard; // Adjust based on actual backend response structure
 
       if (data) {
         setSystemStats({
@@ -76,53 +81,104 @@ const AdminDashboard = () => {
           totalAdmins: data.user_statistics?.admins || 0,
           totalProperties: data.system_statistics?.total_properties || 0,
           totalRevenue: data.system_statistics?.total_payments || 0,
-          // Map system_health from dashboard response
           systemUptime: data.system_health?.api_status === 'running' ? 99.8 : 0,
-          activeIssues: 0 // Not directly in backend, keep as 0 for consistency
+          activeIssues: 0
         });
 
-        // Populate recentActivity from dashboardData (which is an empty list in your backend)
         setRecentActivity(data.recent_activities || []);
 
-        // Populate systemHealth from dashboardData.system_health,
-        // and add defaults for components not explicitly listed in your backend's `system_health` object.
         setSystemHealth([
           { component: 'Database', status: data.system_health?.database_status || 'unknown', uptime: 99.9, response: '45ms' },
           { component: 'API Server', status: data.system_health?.api_status === 'running' ? 'healthy' : 'error', uptime: 99.8, response: '120ms' },
-          // Add default entries for other components if they are not in your backend response
           { component: 'Payment Gateway', status: 'unknown', uptime: 0, response: 'N/A' },
           { component: 'File Storage', status: 'unknown', uptime: 0, response: 'N/A' },
           { component: 'Email Service', status: 'unknown', uptime: 0, response: 'N/A' }
         ]);
       } else {
-        // Fallback stats if no data from API (though the `api` utility usually throws an error for !response.ok)
-        setSystemStats({
-          totalUsers: 0, totalLandlords: 0, totalTenants: 0, totalAdmins: 0,
-          totalProperties: 0, totalRevenue: 0, systemUptime: 0, activeIssues: 0
-        });
+        setSystemStats({ totalUsers: 0, totalLandlords: 0, totalTenants: 0, totalAdmins: 0, totalProperties: 0, totalRevenue: 0, systemUptime: 0, activeIssues: 0 });
         setRecentActivity([]);
-        setSystemHealth([]); // Empty if no dashboard data
+        setSystemHealth([]);
       }
-      setUserGrowth([]); // Not provided by backend
-
     } catch (err) {
       console.error("Failed to fetch admin dashboard data:", err);
-      // Use the error message from the `api` utility for a more informative display
-      setError(err.message || 'Failed to load dashboard data. Please ensure you are logged in as an Admin.');
+      if (err.status === 403) { // Forbidden if not admin
+          setErrorDashboard("Access denied. You do not have administrator privileges.");
+          navigate('/auth/login', { state: { message: "Access denied. Please log in as an administrator." } });
+      } else if (err.status === 401) { // Unauthorized (token invalid/expired)
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          navigate('/auth/login', { state: { message: "Your session expired. Please log in again." } });
+      } else {
+          setErrorDashboard(err.message || 'Failed to load dashboard data. Please ensure you are logged in as an Admin.');
+      }
 
-      // Use minimal fallback data on error
-      setSystemStats({
-        totalUsers: 0, totalLandlords: 0, totalTenants: 0, totalAdmins: 0,
-        totalProperties: 0, totalRevenue: 0, systemUptime: 0, activeIssues: 1
-      });
+      setSystemStats({ totalUsers: 0, totalLandlords: 0, totalTenants: 0, totalAdmins: 0, totalProperties: 0, totalRevenue: 0, systemUptime: 0, activeIssues: 1 });
       setRecentActivity([]);
-      setSystemHealth([
-        { component: 'Backend Connection', status: 'error', uptime: 0, response: 'N/A' }
-      ]);
+      setSystemHealth([{ component: 'Backend Connection', status: 'error', uptime: 0, response: 'N/A' }]);
     } finally {
-      setLoading(false);
+      setLoadingDashboard(false);
     }
-  };
+  }, [navigate]); // Added navigate to dependencies
+
+
+  // --- NEW: Function to fetch all users ---
+  const fetchUsersData = useCallback(async () => {
+    setLoadingUsers(true);
+    setErrorUsers(null);
+    try {
+      const token = getAccessToken();
+      const userRole = getUserRole();
+
+      if (!token || userRole !== 'admin') {
+        setErrorUsers("You are not authorized to view this page.");
+        navigate('/auth/login', { state: { message: "Access denied. Please log in as an administrator." } });
+        return;
+      }
+
+      // --- CRITICAL: Use the /admin/users endpoint ---
+      const response = await api('/auth/users');
+    // If backend wraps the data, unwrap it
+      const usersArray = Array.isArray(response) ? response : response.users || [];
+      setAllUsers(usersArray);
+
+
+}
+    catch (err) {
+      console.error("Failed to fetch user data:", err);
+      if (err.status === 403) {
+        setErrorUsers("Access denied. You do not have administrator privileges.");
+        navigate('/auth/login', { state: { message: "Access denied. Please log in as an administrator." } });
+      } else if (err.status === 401) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        navigate('/auth/login', { state: { message: "Your session expired. Please log in again." } });
+      } else {
+        setErrorUsers(err.message || 'Failed to load users. Please ensure you are logged in as an Admin.');
+      }
+      setAllUsers([]); // Clear users on error
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [navigate]);
+
+
+  // --- useEffect to fetch dashboard data on load/period change ---
+  useEffect(() => {
+    fetchAdminDashboardData();
+  }, [fetchAdminDashboardData, selectedPeriod]);
+
+
+  // --- NEW: useEffect to fetch user data ONLY when 'users' tab is active ---
+  useEffect(() => {
+    if (activeTab === 'users' && !loadingUsers && allUsers.length === 0 && !errorUsers) {
+      // Only fetch if tab is active, not already loading, no users fetched, and no previous error
+      fetchUsersData();
+    }
+    // You could also refetch if 'allUsers' becomes stale, but for simplicity, only fetch once per tab activation.
+  }, [activeTab, fetchUsersData, loadingUsers, allUsers.length, errorUsers]);
+
 
   const handleNavigation = (view) => {
     if (view === 'home') {
@@ -131,7 +187,12 @@ const AdminDashboard = () => {
   };
 
   const handleRefresh = () => {
-    fetchAdminDashboardData();
+    if (activeTab === 'overview') {
+      fetchAdminDashboardData();
+    } else if (activeTab === 'users') {
+      fetchUsersData();
+    }
+    // Add other tab refreshes as needed
   };
 
   // --- Placeholder handlers for all quick action buttons (unchanged) ---
@@ -177,6 +238,7 @@ const AdminDashboard = () => {
       case 'healthy': return 'text-green-600';
       case 'warning': return 'text-yellow-600';
       case 'error': return 'text-red-600';
+      case 'unknown': return 'text-gray-600'; // Added unknown state
       default: return 'text-gray-600';
     }
   };
@@ -186,11 +248,12 @@ const AdminDashboard = () => {
       case 'healthy': return <CheckCircle className="h-4 w-4" />;
       case 'warning': return <Clock className="h-4 w-4" />;
       case 'error': return <XCircle className="h-4 w-4" />;
+      case 'unknown': return <Activity className="h-4 w-4" />; // Added unknown state
       default: return <Activity className="h-4 w-4" />;
     }
   };
 
-  if (loading) {
+  if (loadingDashboard) { // Use loadingDashboard for initial full dashboard load
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-600"></div>
@@ -234,10 +297,10 @@ const AdminDashboard = () => {
               </button>
               <button
                 onClick={handleRefresh}
-                disabled={loading}
+                disabled={loadingDashboard || loadingUsers} // Disable if any data is loading
                 className="flex items-center px-3 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 transition-colors"
               >
-                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-1 ${(loadingDashboard || loadingUsers) ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
               <select
@@ -264,12 +327,12 @@ const AdminDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Display */}
-        {error && (
+        {/* Error Display for Dashboard */}
+        {errorDashboard && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
               <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-              <p className="text-red-700">{error}</p>
+              <p className="text-red-700">{errorDashboard}</p>
             </div>
           </div>
         )}
@@ -510,6 +573,83 @@ const AdminDashboard = () => {
           </>
         )}
 
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Users className="h-5 w-5 mr-2 text-gray-600" />
+                All System Users
+              </h2>
+            </div>
+            <div className="p-6">
+              {errorUsers && ( // Display user-specific error
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                    <p className="text-red-700">{errorUsers}</p>
+                  </div>
+                </div>
+              )}
+
+              {loadingUsers ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+                  <span className="ml-2 text-md text-gray-700">Loading user data...</span>
+                </div>
+              ) : (
+                allUsers.length === 0 && !errorUsers ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p>No users found in the system.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <caption className="mt-4 text-sm text-gray-500">A list of all registered users in the system.</caption>
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {allUsers.map((user) => (
+                            <tr key={user.id}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.id}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.username}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {/* Simple badge-like styling */}
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                                    user.role === 'landlord' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  {user.role}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button className="text-indigo-600 hover:text-indigo-900 px-3 py-1 rounded-md hover:bg-gray-50">Edit</button>
+                                <button className="ml-2 text-red-600 hover:text-red-900 px-3 py-1 rounded-md hover:bg-red-50">Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'system' && (
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -548,30 +688,19 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {(activeTab === 'users' || activeTab === 'reports') && (
+        {activeTab === 'reports' && (
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {activeTab === 'users' ? 'User Management' : 'System Reports'}
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">System Reports</h2>
             </div>
             <div className="p-6">
               <div className="text-center py-12">
                 <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  {activeTab === 'users' ? (
-                    <Users className="h-8 w-8 text-gray-400" />
-                  ) : (
-                    <FileText className="h-8 w-8 text-gray-400" />
-                  )}
+                  <FileText className="h-8 w-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {activeTab === 'users' ? 'User Management Coming Soon' : 'Reports Coming Soon'}
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Reports Coming Soon</h3>
                 <p className="text-gray-600 max-w-md mx-auto">
-                  {activeTab === 'users'
-                    ? 'Advanced user management features including user roles, permissions, and account management will be available here.'
-                    : 'Comprehensive reporting features including analytics, financial reports, and system insights will be available here.'
-                  }
+                  Comprehensive reporting features including analytics, financial reports, and system insights will be available here.
                 </p>
               </div>
             </div>
@@ -596,6 +725,10 @@ const AdminDashboard = () => {
                     <code className="text-blue-600">GET /api/activities/recent</code>
                     <p className="text-gray-600 mt-1">Recent user activities and system events</p>
                   </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <code className="text-blue-600">GET /admin/users</code>
+                    <p className="text-gray-600 mt-1">Fetch all system users (for admin only)</p>
+                  </div>
                 </div>
               </div>
               <div>
@@ -607,7 +740,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="bg-gray-50 p-3 rounded">
                     <code className="text-green-600">Backend URL:</code>
-                    <p className="text-gray-600 mt-1">{API_BASE_URL}</p>
+                    <p className="text-gray-600 mt-1"></p>
                   </div>
                 </div>
               </div>

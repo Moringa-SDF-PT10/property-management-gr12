@@ -29,7 +29,8 @@ def create_app():
     CORS(app, origins=[
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://property-management-gr12-2-u3m7.onrender.com"
+    "http://127.0.0.1:5000"
+    # "https://property-management-gr12-2-u3m7.onrender.com"
     ], supports_credentials=True)
 
 
@@ -87,10 +88,6 @@ def create_app():
     api.add_resource(BroadcastNotificationResource, "/notifications/broadcast")
     api.add_resource(TenantListResource, "/tenants")
 
-    @app.route("/uploads/<filename>")
-    def uploaded_file(filename):
-        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
-    print("Registered routes:", [str(rule) for rule in app.url_map.iter_rules()])
 
     return app
 
@@ -99,9 +96,9 @@ def create_app():
 from views import *
 app_instance = create_app()
 
-@app_instance.route("/")
-def index():
-    return {"message": "Backend is running! Check /properties or /auth/login"}
+
+
+
 
 # Run the app
 

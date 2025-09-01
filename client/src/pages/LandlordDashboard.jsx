@@ -48,83 +48,83 @@ const LandlordDashboard = () => {
     }
   };
 
-  const fetchPaymentData = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/landlord/payments/dashboard", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          "Content-Type": "application/json",
-        },
-      });
+  // const fetchPaymentData = async () => {
+  //   try {
+  //     const response = await fetch("http://localhost:5000/landlord/payments/dashboard", {
+  //       method: "GET",
+  //       headers: {
+  //         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     });
 
-      if (response.ok) {
-        const data = await response.json();
-        setPaymentData(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch payment data:", err);
-      // Don't set error for payment data as it's supplementary
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       setPaymentData(data);
+  //     }
+  //   } catch (err) {
+  //     console.error("Failed to fetch payment data:", err);
+  //     // Don't set error for payment data as it's supplementary
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  const sendRentReminders = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/api/reminders/rent", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          "Content-Type": "application/json",
-        },
-      });
+  // const sendRentReminders = async () => {
+  //   try {
+  //     const response = await fetch("http://localhost:5000/api/reminders/rent", {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! status: ${response.status}`);
+  //     }
 
-      const result = await response.json();
-      alert(result.message || "Rent reminders sent successfully!");
-      fetchDashboardData(); // Refresh data
-    } catch (err) {
-      console.error("Failed to send reminders:", err);
-      alert(`Failed to send reminders: ${err.message}`);
-    }
-  };
+  //     const result = await response.json();
+  //     alert(result.message || "Rent reminders sent successfully!");
+  //     fetchDashboardData(); // Refresh data
+  //   } catch (err) {
+  //     console.error("Failed to send reminders:", err);
+  //     alert(`Failed to send reminders: ${err.message}`);
+  //   }
+  // };
 
-  const generateReport = () => {
-    // Navigate to reports page or trigger report generation
-    window.open("/reports/monthly", "_blank");
-  };
+  // const generateReport = () => {
+  //   // Navigate to reports page or trigger report generation
+  //   window.open("/reports/monthly", "_blank");
+  // };
 
-  const viewRepairRequests = () => {
-    navigate("/maintenance/requests");
-  };
+  // const viewRepairRequests = () => {
+  //   navigate("/maintenance/requests");
+  // };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-600"></div>
-        <p className="ml-3 text-slate-500">Loading dashboard data...</p>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="flex justify-center items-center h-64">
+  //       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-600"></div>
+  //       <p className="ml-3 text-slate-500">Loading dashboard data...</p>
+  //     </div>
+  //   );
+  // }
 
-  if (error) {
-    return <InlineError message={error} />;
-  }
+  // if (error) {
+  //   return <InlineError message={error} />;
+  // }
 
-  if (!dashboardData) {
-    return <div className="text-center text-red-600">No dashboard data available.</div>;
-  }
+  // if (!dashboardData) {
+  //   return <div className="text-center text-red-600">No dashboard data available.</div>;
+  // }
 
-  // Use payment data if available, otherwise fall back to dashboard data
-  const summary = paymentData?.summary || dashboardData?.summary || {};
-  const upToDateTenants = paymentData?.up_to_date_tenants || dashboardData?.up_to_date_tenants || [];
-  const behindTenants = paymentData?.behind_tenants || dashboardData?.behind_tenants || [];
+  // // Use payment data if available, otherwise fall back to dashboard data
+  // const summary = paymentData?.summary || dashboardData?.summary || {};
+  // const upToDateTenants = paymentData?.up_to_date_tenants || dashboardData?.up_to_date_tenants || [];
+  // const behindTenants = paymentData?.behind_tenants || dashboardData?.behind_tenants || [];
 
-  const { property_summary = {}, financial_summary = {}, tenant_summary = {} } = dashboardData;
+  // const { property_summary = {}, financial_summary = {}, tenant_summary = {} } = dashboardData;
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">

@@ -51,7 +51,7 @@ class User(db.Model, SerializerMixin):
 
     leases = db.relationship("Lease", back_populates="tenant", cascade="all, delete-orphan")
     properties = db.relationship("Property", back_populates="landlord")
-    
+
     serialize_rules = ("-leases.tenant", "-leases.property" "-properties.landlord","-sent_notifications.sender","-received_notifications.recipient","-sent_notifications.recipient", "-received_notifications.sender",)
 
 
@@ -113,6 +113,7 @@ class User(db.Model, SerializerMixin):
     def validate_role_static(role):
         return role in VALID_ROLES
 
+
 class Property(db.Model, SerializerMixin):
     __tablename__ = "properties"
 
@@ -134,15 +135,28 @@ class Property(db.Model, SerializerMixin):
     )
 
     def to_dict(self):
+        parsed_pictures = []
+        if self.pictures:
+            try:
+                loaded_data = json.loads(self.pictures)
+                if isinstance(loaded_data, list):
+                    parsed_pictures = loaded_data
+                elif isinstance(loaded_data, str):
+                    parsed_pictures = [loaded_data]
+            except json.JSONDecodeError:
+                parsed_pictures = [self.pictures]
+            except Exception:
+                parsed_pictures = []
+
         return {
             "id": self.id,
             "name": self.name,
             "location": self.location,
             "rent": self.rent,
             "status": self.status,
-            "pictures": json.loads(self.pictures) if self.pictures else [],
+            "pictures": parsed_pictures,
+            "landlord_id": self.landlord_id,
         }
-
 
 
 class Lease(db.Model, SerializerMixin):
